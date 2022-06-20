@@ -57,12 +57,7 @@ class Scatter:
             self.mesh = bpy.data.meshes.new(self.name)
             self.mesh.from_pydata(self._points, [], [])
         else:
-            mesh_buffer = bmesh.new()
-            mesh_buffer.from_mesh(self.mesh)
-            mesh_buffer.verts.ensure_lookup_table()
-            for vertex_index in range(len(self._points)):
-                mesh_buffer.verts[vertex_index].co = self._points[vertex_index]
-            mesh_buffer.to_mesh(self.mesh)
+            self.mesh.vertices.foreach_set("co", self._points.reshape(-1))
 
         if self.base_object is None:
             self.base_object = bu.new_empty(self.name, self.mesh)
@@ -100,8 +95,7 @@ def set_vertex_colors(mesh, color):
 
     if POINT_COLOR not in mesh.attributes:
         mesh.attributes.new(name=POINT_COLOR, type="FLOAT_COLOR", domain="POINT")
-    for vertex_index in range(len(mesh.vertices)):
-        mesh.attributes[POINT_COLOR].data[vertex_index].color = color[vertex_index]
+    mesh.attributes[POINT_COLOR].data.foreach_set("color", color.reshape(-1))
 
 
 def get_vertex_color_material():
