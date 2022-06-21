@@ -13,13 +13,9 @@ making plots with blender. It currently supports scatterplots through `bplt.Scat
 ## Getting started
 
 * Install the addon:
-    * Option1:
-        * Go to `Code > Download ZIP` above
-        * open the compressed file without extracting it and rename the top folder from `blender_plots-main`
-          to `blender_plots`.
-        * In Blender go to `Edit > Preferences > Add-ons > install` and select the downloaded file.
-        * Alternatively you can install before renaming, and then go to the generated addon folder and rename it the same way there.
-    * Option2: Git-clone this repo directly to the Blender addons folder.
+    * Option1: Go to `Code > Download ZIP` above and then in blender go to `Edit > Preferences > Add-ons > install` and select
+      the downloaded file.
+    * Option2: Git-clone this repo to the blender addons folder.
 * Go to the addons panel in blender, search for `blender plots` and click on the tick-box.
 * You should now be able to run `import blender_plots as bplt` in the python console.
 

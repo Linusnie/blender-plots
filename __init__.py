@@ -1,3 +1,6 @@
+import sys
+import os
+
 bl_info = {
     "name": "Blender Plots",
     "description": "Adds python API for plotting in blender",
@@ -12,13 +15,10 @@ bl_info = {
     "category": "Development",
 }
 
-from .scatter import *
-from .blender_utils import *
-
 
 def register():
-    pass
+    sys.path.append(os.path.dirname(__file__))
 
 
 def unregister():
-    pass
+    sys.path.remove(os.path.dirname(__file__))
