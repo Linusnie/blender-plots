@@ -1,4 +1,4 @@
-# blender_plots
+# blender-plots
 
 Python API for plotting in blender 3.1.2
 
@@ -9,6 +9,8 @@ colors specified by numpy arrays still requires a lot of digging through the ble
 
 The goal with this addon/library is to make the visualization process smoother by providing a matplotlib-like API for
 making plots with blender. It currently supports scatterplots through `bplt.Scatter`.
+
+![image info](./images/sinusoids.png)
 
 ## Getting started
 

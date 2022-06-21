@@ -3,14 +3,14 @@ import os
 
 bl_info = {
     "name": "Blender Plots",
-    "description": "Adds python API for plotting in blender",
+    "description": "Adds a python API for plotting in blender",
     "author": "Linus Härenstam-Nielsen",
     "version": (1, 0, 0),
     "blender": (3, 1, 2),
     "location": "Python console",
     "warning": "",
-    "doc_url": "",
-    "tracker_url": "",
+    "doc_url": "https://github.com/Linusnie/blender-plots",
+    "tracker_url": "https://github.com/Linusnie/blender-plots/issues",
     "support": "COMMUNITY",
     "category": "Development",
 }
