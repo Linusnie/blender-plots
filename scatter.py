@@ -1,8 +1,7 @@
 import numpy as np
 
 import bpy
-import bmesh
-import blender_plots_tmp.blender_utils as bu
+import blender_plots.blender_utils as bu
 
 POINT_COLOR = "point_color"
 
