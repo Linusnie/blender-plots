@@ -130,7 +130,6 @@ def add_mesh_markers(base_object, marker_type, randomize_rotation=False, marker_
     ).outputs["Points"]
 
     if marker_type in MARKER_TYPES:
-        # use kwargs to generate a node (typically mesh primitive)
         mesh_socket = node_linker.new_node(node_type=MARKER_TYPES[marker_type], **marker_kwargs).outputs["Mesh"]
     elif isinstance(marker_type, bpy.types.Mesh) or isinstance(marker_type, bpy.types.Object):
         # use the supplied mesh by adding it as an input socket to the modifier
