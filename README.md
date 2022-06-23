@@ -65,7 +65,7 @@ scatter = bplt.Scatter(points[:, :3] - points[0, :3], color=points[:, 3:]/255, s
 You can find the
 model [here](https://sketchfab.com/3d-models/tikal-guatemala-point-cloud-ea0a4612234c4aa3bad3ad68dd369953)
 (select `.asc` format). Original source: [OpenHeritage](https://openheritage3d.org/project.php?id=708h-ss96),
-license: [CC Attribution-NonCommercial-ShareAlikeCC](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+license: [CC Attribution-NonCommercial-ShareAlikeCC](https://creativecommons.org/licenses/by-nc-sa/4.0/).
 
 ### Marker options
 
@@ -104,7 +104,12 @@ Similarly, the [cube node](https://docs.blender.org/manual/en/latest/modeling/ge
 has a vector-valued `Size` parameter:
 
 ```
-bplt.Scatter(np.random.rand(n, 3)*50, color=np.random.rand(n, 3), size=(5, 1, 1), randomize_rotation=True)
+bplt.Scatter(
+    np.random.rand(n, 3)*50,
+    color=np.random.rand(n, 3),
+    size=(5, 1, 1),
+    randomize_rotation=True
+)
 ```
 
 ![image info](./images/rotated.png)
@@ -146,7 +151,12 @@ You can get perfect spheres as markers by passing in `point_type="spheres"`. Tho
 the rendered view and with the rendering engine set to cycles
 
 ```
-bplt.Scatter(np.random.rand(n, 3)*50, color=np.random.rand(n, 3), point_type="spheres", radius=1.5)
+bplt.Scatter(
+    np.random.rand(n, 3)*50,
+    color=np.random.rand(n, 3),
+    point_type="spheres",
+    radius=1.5
+)
 ```
 
 ![image info](./images/spheres.png)
