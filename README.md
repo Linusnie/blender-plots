@@ -51,8 +51,7 @@ scatter = bplt.Scatter(np.stack([x, y, z], axis=-1).reshape(-1, 3), color=(0, 0,
 ### Visualizing point clouds
 
 Since all heavy operations are done through numpy arrays or blender nodes it's possible to visualize large point clouds
-with minimal overhead. For example, Here is one with 1M points from the user [Fovea](https://sketchfab.com/3dfovea) on
-sketchfab:
+with minimal overhead. For example, Here is one with 1M points:
 
 ```
 import numpy as np
@@ -65,8 +64,8 @@ scatter = bplt.Scatter(points[:, :3] - points[0, :3], color=points[:, 3:]/255, s
 
 You can find the
 model [here](https://sketchfab.com/3d-models/tikal-guatemala-point-cloud-ea0a4612234c4aa3bad3ad68dd369953)
-(select `.asc` format).
-License: [CC Attribution-NonCommercial-ShareAlikeCC](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+(select `.asc` format). Original source: [OpenHeritage](https://openheritage3d.org/project.php?id=708h-ss96),
+license: [CC Attribution-NonCommercial-ShareAlikeCC](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 
 ### Marker options
 
