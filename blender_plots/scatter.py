@@ -4,6 +4,16 @@ import bpy
 import blender_plots.blender_utils as bu
 
 POINT_COLOR = "point_color"
+MARKER_TYPES = {
+    "cones": "GeometryNodeMeshCone",
+    "cubes": "GeometryNodeMeshCube",
+    "cylinders": "GeometryNodeMeshCylinder",
+    "grids": "GeometryNodeMeshGrid",
+    "ico_spheres": "GeometryNodeMeshIcoSphere",
+    "circles": "GeometryNodeMeshCircle",
+    "lines": "GeometryNodeMeshLine",
+    "uv_spheres": "GeometryNodeMeshUVSphere",
+}
 
 
 class Scatter:
@@ -14,32 +24,24 @@ class Scatter:
         color: Nx3 array with rgb values for each point, or a single rgb-value (e.g. (1, 0, 0) for red) to apply to
             every point.
         name: name to use for blender object. Will delete any previous plot with the same name.
-        point_type: select appearance of points. Options:
-            "mesh" (str): will use **point_kwargs to instance geometry node that generates what to instance on each
-                point.
-            "spheres" (str): will generate a perfect sphere on each point.
-                Only visible in rendered view with rendering engine set to `Cycles`
-            Mesh or Object containing mesh: will instance the provided mesh on each point, overrides point_kwargs
-        point_kwargs: if point_type is set to "mesh" or "spheres" and kwargs will be supplied to node_linker.new_node.
-            See readme for examples.
+        marker_type: select appearance of points. Either MARKER_TYPE, "spheres", bpy_types.Mesh or bpy_types.Object
+        marker_scale: xyz scale for markers
+        marker_kwargs: additional arguments for configuring markers
     """
 
-    def __init__(self, points, color=None, name="scatter", point_type="mesh",
-                 randomize_rotation=False, **point_kwargs):
+    def __init__(self, points, color=None, name="scatter", marker_type="cubes", marker_scale=None,
+                 randomize_rotation=False, **marker_kwargs):
         self.name = name
         self.base_object = None
         self.mesh = None
         self.color_material = None
 
         self.points = points
-        if point_type == "mesh":
-            self.points_modifier = instance_mesh_on_points(self.base_object, randomize_rotation=randomize_rotation,
-                                                           **point_kwargs)
-        elif point_type == "spheres":
-            self.points_modifier = add_spheres_to_points(self.base_object, **point_kwargs)
-        elif isinstance(point_type, bpy.types.Mesh) or isinstance(point_type, bpy.types.Object):
-            self.points_modifier = instance_mesh_on_points(self.base_object, mesh=point_type,
-                                                           randomize_rotation=randomize_rotation)
+        if marker_type == "spheres":
+            self.points_modifier = add_sphere_markers(self.base_object, **marker_kwargs)
+        else:
+            self.points_modifier = add_mesh_markers(self.base_object, randomize_rotation=randomize_rotation,
+                                                    marker_type=marker_type, marker_scale=marker_scale, **marker_kwargs)
         self.color = color
 
     @property
@@ -109,14 +111,14 @@ def get_vertex_color_material():
     return material
 
 
-def instance_mesh_on_points(base_object, mesh=None, randomize_rotation=False, **mesh_kwargs):
+def add_mesh_markers(base_object, marker_type, randomize_rotation=False, marker_scale=None, **marker_kwargs):
     """Create a geometry node modifier that instances a mesh on each vertex.
     Args:
         base_object: object containing mesh with vertices to instance on.
-        mesh: mesh or object containing mesh to instance on points, overrides mesh_kwargs if supplied
+        marker_type: name of marker type (see MARKER_TYPES), or a blender mesh/object to use as marker
         randomize_rotation: if True each mesh instance will be given a random rotation (uniform euler angles)
-        mesh_kwargs: arguments to passed to node_linker.new_node to generate point mesh. See NodeLinker and examples in
-         readme
+        marker_scale: xyz scale for markers
+        marker_kwargs: additional arguments for configuring markers
     """
     modifier = base_object.modifiers.new(type="NODES", name="spheres")
     node_linker = bu.NodeLinker(modifier.node_group)
@@ -127,15 +129,13 @@ def instance_mesh_on_points(base_object, mesh=None, randomize_rotation=False, **
         mesh=node_linker.group_input.outputs["Geometry"]
     ).outputs["Points"]
 
-    if mesh is None:
+    if marker_type in MARKER_TYPES:
         # use kwargs to generate a node (typically mesh primitive)
-        if "node_type" not in mesh_kwargs:
-            mesh_kwargs["node_type"] = "GeometryNodeMeshCube"
-        mesh_socket = node_linker.new_node(**mesh_kwargs).outputs["Mesh"]
-    elif isinstance(mesh, bpy.types.Mesh) or isinstance(mesh, bpy.types.Object):
+        mesh_socket = node_linker.new_node(node_type=MARKER_TYPES[marker_type], **marker_kwargs).outputs["Mesh"]
+    elif isinstance(marker_type, bpy.types.Mesh) or isinstance(marker_type, bpy.types.Object):
         # use the supplied mesh by adding it as an input socket to the modifier
         modifier.node_group.inputs.new("NodeSocketObject", "Point Instance")  # Input_3
-        modifier["Input_3"] = mesh
+        modifier["Input_3"] = marker_type
         modifier.show_viewport = False
         modifier.show_viewport = True
         mesh_socket = node_linker.new_node(
@@ -143,7 +143,8 @@ def instance_mesh_on_points(base_object, mesh=None, randomize_rotation=False, **
             Object=node_linker.group_input.outputs["Point Instance"]
         ).outputs["Geometry"]
     else:
-        raise TypeError(f"Invalid mesh: {mesh}")
+        raise TypeError(f"Invalid marker type: {marker_type}, expected bpy.types.Mesh, bpy.Types.Object, "
+                        f"or one of: {', '.join(MARKER_TYPES)}")
 
     colored_mesh = node_linker.new_node(
         "GeometryNodeSetMaterial",
@@ -153,7 +154,8 @@ def instance_mesh_on_points(base_object, mesh=None, randomize_rotation=False, **
     node = node_linker.new_node(
         "GeometryNodeInstanceOnPoints",
         points=points_socket,
-        instance=colored_mesh
+        instance=colored_mesh,
+        scale=marker_scale if marker_scale is not None else [1, 1, 1]
     )
     if randomize_rotation:
         # these rotation are not uniform (some orientations will be more likely than others)
@@ -167,12 +169,12 @@ def instance_mesh_on_points(base_object, mesh=None, randomize_rotation=False, **
     return modifier
 
 
-def add_spheres_to_points(base_object, **point_kwargs):
+def add_sphere_markers(base_object, **marker_kwargs):
     """Create a geometry node modifier that adds a point on each vertex. This will result in perfect spheres, only
         visible in rendered view with rendering engine set to `Cycles`
     Args:
         base_object: object containing mesh with vertices to instance on.
-        point_kwargs: arguments to passed to node_linker.new_node when generating point node. e.g. radius=0.1
+        marker_kwargs: arguments to passed to node_linker.new_node when generating point node. e.g. radius=0.1
     """
     modifier = base_object.modifiers.new(type="NODES", name="spheres")
     node_linker = bu.NodeLinker(modifier.node_group)
@@ -181,7 +183,7 @@ def add_spheres_to_points(base_object, **point_kwargs):
     points = node_linker.new_node(
         "GeometryNodeMeshToPoints",
         mesh=node_linker.group_input.outputs["Geometry"],
-        **point_kwargs,
+        **marker_kwargs,
     ).outputs["Points"]
     node = node_linker.new_node(
         "GeometryNodeSetMaterial",
