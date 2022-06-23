@@ -120,7 +120,7 @@ for more details.
 
 ### Custom mesh as marker
 
-You can also use an existing mesh by passing it to `point_type=...`:
+You can also use an existing mesh by passing it to `marker_type=...`:
 
 ```
 bpy.ops.mesh.primitive_monkey_add()
@@ -147,14 +147,14 @@ scatter = bplt.Scatter(
 
 ### Sphere markers
 
-You can get perfect spheres as markers by passing in `point_type="spheres"`. Though note that these are only visible in
+You can get perfect spheres as markers by passing in `marker_type="spheres"`. Though note that these are only visible in
 the rendered view and with the rendering engine set to cycles
 
 ```
 bplt.Scatter(
     np.random.rand(n, 3)*50,
     color=np.random.rand(n, 3),
-    point_type="spheres",
+    marker_type="spheres",
     radius=1.5
 )
 ```
