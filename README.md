@@ -48,6 +48,20 @@ scatter = bplt.Scatter(np.stack([x, y, z], axis=-1).reshape(-1, 3), color=(0, 0,
 
 ![image info](./images/sinusoids_editor.png)
 
+### Animating
+To get an animated plot, just pass in a `TxNx3` array of xyz coordinates instead:
+```
+# plot animated function
+n, l, T = 150, 100, 100
+t, x, y = np.meshgrid(np.arange(0, T), np.linspace(0, l, n), np.linspace(0, l, n), indexing='ij')
+
+z = np.sin(2*np.pi * x / l) * np.sin(2*np.pi * y / l) * np.sin(2*np.pi * t / T) * 20
+scatter = bplt.Scatter(np.stack([x, y, z], axis=-1).reshape(T, n*n, 3), color=(1, 0, 0), name="red")
+
+z = np.sin(4*np.pi * x / l) * np.sin(4*np.pi * y / l) * np.sin(8*np.pi * t / T) * 20 + 40
+scatter = bplt.Scatter(np.stack([x, y, z], axis=-1).reshape(T, n*n, 3), color=(0, 0, 1), name="blue")
+```
+
 ### Visualizing point clouds
 
 Since all heavy operations are done through numpy arrays or blender nodes it's possible to visualize large point clouds
