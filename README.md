@@ -10,7 +10,7 @@ colors specified by numpy arrays still requires a lot of digging through the API
 The goal with this addon/library is to make the visualization process smoother by providing a matplotlib-like API for
 making plots. It currently supports scatterplots through `bplt.Scatter`.
 
-![out_15fps_v3](https://user-images.githubusercontent.com/12471058/175825665-df3d36e0-21fe-491c-8642-7035c4272dee.gif)
+![out_15fps_v3_loop](https://user-images.githubusercontent.com/12471058/175826002-dc6ba8d5-a1c1-4b27-ae64-fc8085e46958.gif)
 
 
 ## Getting started
