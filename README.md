@@ -10,7 +10,8 @@ colors specified by numpy arrays still requires a lot of digging through the API
 The goal with this addon/library is to make the visualization process smoother by providing a matplotlib-like API for
 making plots. It currently supports scatterplots through `bplt.Scatter`.
 
-![image info](./images/sinusoids.png)
+![out_15fps_v3](https://user-images.githubusercontent.com/12471058/175825665-df3d36e0-21fe-491c-8642-7035c4272dee.gif)
+
 
 ## Getting started
 
@@ -48,7 +49,7 @@ scatter = bplt.Scatter(np.stack([x, y, z], axis=-1).reshape(-1, 3), color=(0, 0,
 
 ![image info](./images/sinusoids_editor.png)
 
-### Animating
+### Animations
 To get an animated plot, just pass in a `TxNx3` array of xyz coordinates instead:
 ```
 # plot animated function
@@ -61,6 +62,8 @@ scatter = bplt.Scatter(np.stack([x, y, z], axis=-1).reshape(T, n*n, 3), color=(1
 z = np.sin(4*np.pi * x / l) * np.sin(4*np.pi * y / l) * np.sin(8*np.pi * t / T) * 20 + 40
 scatter = bplt.Scatter(np.stack([x, y, z], axis=-1).reshape(T, n*n, 3), color=(0, 0, 1), name="blue")
 ```
+
+https://user-images.githubusercontent.com/12471058/175825762-d208f9bf-7227-4e40-ba32-2871c7567206.mp4
 
 ### Visualizing point clouds
 
