@@ -97,7 +97,7 @@ class Scatter:
 
     @color.setter
     def color(self, color):
-        self._color = np.array(color)
+        self._color = np.array(color) if color is not None else color
         self.update_color()
 
     def update_color(self):
