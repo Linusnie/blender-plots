@@ -21,7 +21,10 @@ class Scatter:
     """Create a scatterplot.
 
     Args:
-        points: Nx3 array with xyz positions for points to scatter, or TxNx3 for sequence of scatter plots to animate
+        x,y,z:
+            If y and z are not provided: expects x to be a Nx3 array with xyz positions for points to scatter, or TxNx3
+                for sequence of scatter plots to animate
+            if y and z are provided: expects x,y,z to be length N or TxN arrays for xyz coordinates respectively.
         color: Nx3 or Nx4 array or with RGB or RGBA values for each point, or a single RGB/RGBA-value
             (e.g. (1, 0, 0) for red) to apply to every point.
         name: name to use for blender object. Will delete any previous plot with the same name.
@@ -30,25 +33,14 @@ class Scatter:
         marker_kwargs: additional arguments for configuring markers
     """
 
-    def __init__(self, points, color=None, name="scatter", marker_type="cubes", marker_scale=None,
+    def __init__(self, x, y=None, z=None, color=None, name="scatter", marker_type="cubes", marker_scale=None,
                  randomize_rotation=False, **marker_kwargs):
         self.name = name
         self.base_object = None
         self.mesh = None
         self.color_material = None
-        self.animated = (points.ndim == 3)
 
-        match points.shape:
-            case (int(), int(), 3):
-                self.n_frames, self.n_points = points.shape[:2]
-            case (int(), 3):
-                self.n_frames, self.n_points = 0, points.shape[0]
-            case (3,):
-                points = points.reshape((1, 3))
-                self.n_frames, self.n_points = 0, 1
-            case _:
-                raise ValueError(f"Invalid input shape for points: {points.shape}")
-
+        points, self.n_frames, self.n_points = get_points_array(x, y, z)
         self.points = points
         if marker_type == "spheres":
             self.marker_modifier = add_sphere_markers(self.base_object, n_frames=self.n_frames, **marker_kwargs)
@@ -79,7 +71,7 @@ class Scatter:
         else:
             self.mesh.vertices.foreach_set("co", self._points.reshape(-1))
 
-        if self.n_frames > 0:
+        if self.n_frames is not None:
             set_vertex_attribute(
                 self.mesh, FRAME_INDEX,
                 np.arange(0, self.n_frames)[None].repeat(self.n_points, axis=1).reshape(-1)
@@ -106,16 +98,54 @@ class Scatter:
                 case (self.n_frames, self.n_points, 3 | 4):
                     color = self._color.reshape(self.n_frames * self.n_points, -1)
                 case (self.n_points, 3 | 4):
-                    color = np.tile(self._color, (self.n_frames, 1)) if self.n_frames > 0 else self._color
-                case (3 | 4,):
+                    color = np.tile(self._color, (self.n_frames, 1)) if self.n_frames is not None else self._color
+                case (3 | 4, ):
                     color = np.tile(self._color, (len(self.mesh.vertices), 1))
                 case _:
-                    raise ValueError(f"Invalid color shape: {self._color.shape} with {self.n_frames=}, {self.n_points=}")
+                    raise ValueError(
+                        f"Invalid color shape: {self._color.shape} with {self.n_frames=}, {self.n_points=}")
 
             set_vertex_colors(self.mesh, color)
             self.color_material = get_vertex_color_material()
             self.mesh.materials.append(self.color_material)
             self.marker_modifier["Input_2"] = self.color_material
+
+
+def get_points_array(x, y, z):
+    """Parses x,y,z to a Nx3 or NxTx3 array of points."""
+    if (y is None) and (z is None):
+        # only x provided, parse it as Nx3 or TxNx3
+        x = np.array(x)
+        match x.shape:
+            case (3, ):
+                points = x.reshape(1, 3)
+                n_frames, n_points = None, 1
+            case (n, 3, ):
+                points = x
+                n_frames, n_points = None, n
+            case (t, n, 3, ):
+                points = x
+                n_frames, n_points = t, n
+            case _:
+                raise ValueError(f"Invalid shape for points: {x.shape=}, expected Nx3 or TxNx3")
+    elif (y is not None) and (z is not None):
+        # parse x,y,z as N,N,N or TxN,TxN,TxN
+        x, y, z = np.array(x), np.array(y), np.array(z)
+        match x.shape, y.shape, z.shape:
+            case (), (), ():
+                points = np.array([x, y, z]).reshape(1, 3)
+                n_frames, n_points = None, 1
+            case (n, ), (m, ), (k, ) if n == m == k:
+                points = np.stack([x, y, z], axis=-1)
+                n_frames, n_points = None, n
+            case (t, n), (r, m), (s, k) if t == r == s and n == m == k:
+                points = np.stack([x, y, z], axis=-1)
+                n_frames, n_points = t, n
+            case _:
+                raise ValueError(f"Incompatible shapes: {x.shape=}, {y.shape=}, {z.shape=}")
+    else:
+        raise ValueError(f"Eiter both y and z needs to be provided, or neither")
+    return points, n_frames, n_points
 
 
 def set_vertex_attribute(mesh, attribute_name, attribute_values):
@@ -200,11 +230,10 @@ def add_mesh_markers(base_object, marker_type, randomize_rotation=False, marker_
         material=node_linker.group_input.outputs["Point Color"]
     ).outputs["Geometry"]
 
-    frame_selection_socket = get_frame_selection_node(modifier, n_frames).outputs["Value"] if n_frames > 0 else None
     instance_on_points_node = node_linker.new_node(
         "GeometryNodeInstanceOnPoints",
         points=points_socket,
-        selection=frame_selection_socket,
+        selection=None if n_frames is None else get_frame_selection_node(modifier, n_frames).outputs["Value"],
         instance=colored_mesh,
         scale=marker_scale
     )
@@ -241,7 +270,7 @@ def add_sphere_markers(base_object, n_frames, **marker_kwargs):
     points = node_linker.new_node(
         "GeometryNodeMeshToPoints",
         mesh=node_linker.group_input.outputs["Geometry"],
-        selection=get_frame_selection_node(modifier, n_frames).outputs["Value"] if n_frames > 0 else None,
+        selection=None if n_frames is None else get_frame_selection_node(modifier, n_frames).outputs["Value"],
         **marker_kwargs,
     ).outputs["Points"]
     node = node_linker.new_node(

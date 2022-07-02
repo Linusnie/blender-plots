@@ -12,7 +12,6 @@ making plots. It currently supports scatterplots through `bplt.Scatter`.
 
 ![out_15fps_v3_loop](https://user-images.githubusercontent.com/12471058/175826002-dc6ba8d5-a1c1-4b27-ae64-fc8085e46958.gif)
 
-
 ## Getting started
 
 * Install the addon:
@@ -31,43 +30,45 @@ for advanced use-cases.
 
 ### Plotting functions
 
-For now all the plotting is done through `bplt.Scatter` which expects an `Nx3` numpy array of xyz coordinates and
-optionally an `Nx3` or `Nx4` numpy array with RGB or RGBA color values.
+For now all the plotting is done through `bplt.Scatter` which expects three arrays x, y, z with the same length `N`
+containing coordinates to plot (or equivalently a single `Nx3` array as the first argument). Color can also be set using
+the `color=` argument, which expects a`Nx3` or `Nx4` numpy array with RGB or RGBA color values. Passing in a single RGB
+or RGBA value sets the same color for all points.
 
 ```
 import numpy as np
 import blender_plots as bplt
 n, l = 150, 100
 x, y = np.meshgrid(np.linspace(0, l, n), np.linspace(0, l, n))
+x, y = x.ravel(), y.ravel()
 
 z = np.sin(2*np.pi * x / l)*np.sin(2*np.pi * y / l) * 20
-scatter = bplt.Scatter(np.stack([x, y, z], axis=-1).reshape(-1, 3), color=(1, 0, 0), name="red")
+bplt.Scatter(x, y, z, color=(1, 0, 0), name="red")
 
 z = np.sin(4*np.pi * x / l)*np.sin(4*np.pi * y / l) * 20 + 40
-scatter = bplt.Scatter(np.stack([x, y, z], axis=-1).reshape(-1, 3), color=(0, 0, 1), name="blue")
+bplt.Scatter(x, y, z, color=(0, 0, 1), name="blue")
 ```
 
 ![image info](./images/sinusoids_editor.png)
 
 ### Animations
-To get an animated plot, just pass in a `TxNx3` array of xyz coordinates instead:
+
+To get an animated plot, just pass in x, y, z as `TxN` arrays instead (or `TxNx3` as the first argument):
+
 ```
 # plot animated function
 n, l, T = 150, 100, 100
 t, x, y = np.meshgrid(np.arange(0, T), np.linspace(0, l, n), np.linspace(0, l, n), indexing='ij')
+t, x, y = t.reshape((T, -1)), x.reshape((T, -1)), y.reshape((T, -1))
 
 z = np.sin(2*np.pi * x / l) * np.sin(2*np.pi * y / l) * np.sin(2*np.pi * t / T) * 20
-scatter = bplt.Scatter(np.stack([x, y, z], axis=-1).reshape(T, n*n, 3), color=(1, 0, 0), name="red")
+bplt.Scatter(x, y, z, color=(1, 0, 0), name="red")
 
 z = np.sin(4*np.pi * x / l) * np.sin(4*np.pi * y / l) * np.sin(8*np.pi * t / T) * 20 + 40
-scatter = bplt.Scatter(np.stack([x, y, z], axis=-1).reshape(T, n*n, 3), color=(0, 0, 1), name="blue")
+bplt.Scatter(x, y, z, color=(0, 0, 1), name="blue")
 ```
 
-
 https://user-images.githubusercontent.com/12471058/175827154-f2788971-78d3-4778-937a-5d0ff30af7fd.mp4
-
-
-
 
 ### Visualizing point clouds
 
