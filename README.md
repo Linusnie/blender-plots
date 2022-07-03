@@ -1,6 +1,6 @@
 # blender-plots
 
-Python API for plotting in blender 3.1.2
+Python API for plotting in blender 3.1.2 and 3.2
 
 ## Info
 

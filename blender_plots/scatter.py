@@ -194,6 +194,8 @@ def add_mesh_markers(base_object, marker_type, randomize_rotation=False, marker_
         marker_kwargs: additional arguments for configuring markers
     """
     modifier = base_object.modifiers.new(type="NODES", name="spheres")
+    if modifier.node_group is None:
+        modifier.node_group = bu.geometry_node_group_empty_new()
     node_linker = bu.NodeLinker(modifier.node_group)
 
     # create all inputs, some might be unused depending on input parameters.
@@ -261,7 +263,10 @@ def add_sphere_markers(base_object, n_frames, **marker_kwargs):
         marker_kwargs: arguments to passed to node_linker.new_node when generating point node. e.g. radius=0.1
     """
     modifier = base_object.modifiers.new(type="NODES", name="spheres")
+    if modifier.node_group is None:
+        modifier.node_group = bu.geometry_node_group_empty_new()
     node_linker = bu.NodeLinker(modifier.node_group)
+
     modifier.node_group.inputs.new("NodeSocketMaterial", "Point Color")  # Input_2
     modifier.node_group.inputs.new("NodeSocketFloat", "Frame Index")  # Input_3
     modifier["Input_3_use_attribute"] = True
