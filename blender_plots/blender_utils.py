@@ -77,6 +77,13 @@ def new_empty(name, object_data=None, select=True):
     return new_object
 
 
+def set_vertex_attribute(mesh, attribute_name,  attribute_values, attribute_type="FLOAT"):
+    if attribute_name not in mesh.attributes:
+        mesh.attributes.new(name=attribute_name, type=attribute_type, domain="POINT")
+    data_type = "vector" if attribute_type == "FLOAT_VECTOR" else "value"
+    mesh.attributes[attribute_name].data.foreach_set(data_type, attribute_values.reshape(-1))
+
+
 def python_arg_to_blender_key(arg):
     """convert python argument to geometry node name, e.g. radius->Radius, instance_index->Instance Index"""
     return ' '.join([s.capitalize() for s in arg.split('_')])

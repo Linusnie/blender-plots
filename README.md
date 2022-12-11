@@ -23,7 +23,7 @@ making plots. It currently supports scatterplots through `bplt.Scatter`.
 
 Since the built-in text editor isn't great I recommend using [jupyterlab](https://jupyter.org/)
 with
-a [blender kernel](https://blender.stackexchange.com/questions/172249/how-can-i-use-blenders-python-api-from-a-ipython-terminal-or-jupyter-notebook)
+a [blender kernel](https://github.com/cheng-chi/blender_notebook)
 for advanced use-cases.
 
 ## Examples
@@ -140,28 +140,59 @@ This is achieved by automatically converting input arguments to geometry node pr
 See [blender_utils.py](https://github.com/Linusnie/blender_plots/blob/main/blender_utils.py)
 for more details.
 
+### Rotating markers
+Each marker can be assigned a rotation using the argument `marker_rotation=...`, similarly to the color argument it
+supports passing a single value for all points, one for each point, or one for each point and timestamp.
+The supported formats are XYZ euler angles in radians (by passing an Nx3 or NxTx3 array) or rotation matrices
+(by passing a Nx3x3 or NxTx3x3 array). As shown in the previous examples passing `randomize_rotation=True` assigns a
+random rotation to each marker.
+
+```
+def get_rotaitons_facing_point(origin, points):
+    n_points = len(points)
+    d = (origin - points) / np.linalg.norm(origin - points, axis=-1)[:, None]
+    R = np.zeros((n_points, 3, 3))
+    R[..., -1] = d
+    R[..., 0] = np.cross(d, np.random.randn(n_points, 3))
+    R[..., 0] /= np.linalg.norm(R[..., 0], axis=-1)[..., None]
+    R[..., 1] = np.cross(R[..., 2], R[..., 0])
+    return R
+
+n = 5000
+points = np.random.randn(n, 3) * 20
+rots = get_rotaitons_facing_point(np.zeros(3), points)
+s = bplt.Scatter(
+    points,
+    marker_rotation=rots,
+    color=np.array([[1.0, 0.1094, 0.0], [0.0, 0.1301, 1.0]])[np.random.randint(2, size=n)],
+    size=(1, 1, 5),
+)
+```
+
+![image info](./images/rots.png)
+
 ### Custom mesh as marker
 
 You can also use an existing mesh by passing it to `marker_type=...`:
 
 ```
+from colorsys import hls_to_rgb
 bpy.ops.mesh.primitive_monkey_add()
 monkey = bpy.context.active_object
 monkey.hide_viewport = True
 monkey.hide_render = True
 n = int(.5e2)
+
 scatter = bplt.Scatter(
-    np.stack([
-        np.cos(np.linspace(0, 1, n)*np.pi*4),
-        np.sin(np.linspace(0, 1, n)*np.pi*4),
-        np.linspace(0, 1, n)
-    ], axis=-1) * 50,
-    color=np.random.rand(n, 3),
+    50 * np.cos(np.linspace(0, 1, n)*np.pi*4),
+    50 * np.sin(np.linspace(0, 1, n)*np.pi*4),
+    50 * np.linspace(0, 1, n),
+    color=np.array([hls_to_rgb(2/3 * i/(n-1), 0.5, 1) for i in range(n)]),
     marker_type=monkey,
     radius_bottom=1,
     radius_top=3,
     marker_scale=[5]*3,
-    randomize_rotation=True
+    marker_rotation=np.array([np.zeros(n), np.zeros(n), np.pi/2 + np.linspace(0, 4 * np.pi, n)]).T,
 )
 ```
 

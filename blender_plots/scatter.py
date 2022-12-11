@@ -1,10 +1,12 @@
 import numpy as np
 
 import bpy
+import mathutils as mu
 import blender_plots.blender_utils as bu
 
 FRAME_INDEX = "frame_index"
-POINT_COLOR = "point_color"
+MARKER_COLOR = "marker_color"
+MARKER_ROTATION = "marker_rotation"
 MARKER_TYPES = {
     "cones": "GeometryNodeMeshCone",
     "cubes": "GeometryNodeMeshCube",
@@ -30,11 +32,14 @@ class Scatter:
         name: name to use for blender object. Will delete any previous plot with the same name.
         marker_type: select appearance of points. Either MARKER_TYPE, "spheres", bpy_types.Mesh or bpy_types.Object
         marker_scale: xyz scale for markers
+        marker_rotation: Nx3 (euler angles in radians) or Nx3x3 (rotation matrices) array specifying the rotation for
+            each marker. Or "random" for applying a random rotation to each marker.
+        randomize_rotation: If set to True randomize the rotation of each marker. Overrides marker_rotation.
         marker_kwargs: additional arguments for configuring markers
     """
 
     def __init__(self, x, y=None, z=None, color=None, name="scatter", marker_type="cubes", marker_scale=None,
-                 randomize_rotation=False, **marker_kwargs):
+                 marker_rotation=None, randomize_rotation=False, **marker_kwargs):
         self.name = name
         self.base_object = None
         self.mesh = None
@@ -54,6 +59,7 @@ class Scatter:
                 **marker_kwargs
             )
         self.color = color
+        self.marker_rotation = marker_rotation
 
     @property
     def points(self):
@@ -72,7 +78,7 @@ class Scatter:
             self.mesh.vertices.foreach_set("co", self._points.reshape(-1))
 
         if self.n_frames is not None:
-            set_vertex_attribute(
+            bu.set_vertex_attribute(
                 self.mesh, FRAME_INDEX,
                 np.arange(0, self.n_frames)[None].repeat(self.n_points, axis=1).reshape(-1)
             )
@@ -94,21 +100,45 @@ class Scatter:
 
     def update_color(self):
         if self._color is not None:
-            match self._color.shape:
-                case (self.n_frames, self.n_points, 3 | 4):
-                    color = self._color.reshape(self.n_frames * self.n_points, -1)
-                case (self.n_points, 3 | 4):
-                    color = np.tile(self._color, (self.n_frames, 1)) if self.n_frames is not None else self._color
-                case (3 | 4, ):
-                    color = np.tile(self._color, (len(self.mesh.vertices), 1))
-                case _:
-                    raise ValueError(
-                        f"Invalid color shape: {self._color.shape} with {self.n_frames=}, {self.n_points=}")
-
+            color, _ = self.tile_data(self._color, [[3], [4]], "color")
             set_vertex_colors(self.mesh, color)
             self.color_material = get_vertex_color_material()
             self.mesh.materials.append(self.color_material)
             self.marker_modifier["Input_2"] = self.color_material
+
+    @property
+    def marker_rotation(self):
+        return self._marker_rotation
+
+    @marker_rotation.setter
+    def marker_rotation(self, marker_rotation):
+        self._marker_rotation = np.array(marker_rotation) if marker_rotation is not None else marker_rotation
+        self.update_marker_rotation()
+
+    def update_marker_rotation(self):
+        if self._marker_rotation is not None:
+            marker_rotation, rotation_dims = self.tile_data(self._marker_rotation, [[3], [3, 3]], "marker rotation")
+            if rotation_dims == [3, 3]:
+                marker_rotation = np.stack([np.array(mu.Matrix(r).to_euler()) for r in marker_rotation])
+            bu.set_vertex_attribute(self.mesh, MARKER_ROTATION, marker_rotation, "FLOAT_VECTOR")
+
+    def tile_data(self, data_array, valid_dims, name=""):
+        """Tile or reshape data_array with shape NxTx(dims), Nx(dims) or (dims) to shape (N*T)x(dims)."""
+        match data_array.shape:
+            case (self.n_frames, self.n_points, *dims) if dims in valid_dims:
+                out_array = data_array.reshape(self.n_frames * self.n_points, *dims)
+            case (self.n_points, *dims) if dims in valid_dims:
+                if self.n_frames is not None:
+                    out_array = np.tile(data_array, (self.n_frames, *([1] * len(dims))))
+                else:
+                    out_array = data_array
+            case (*dims, ) if dims in valid_dims:
+                n_points_total = self.n_points * (1 if self.n_frames is None else self.n_frames)
+                out_array = np.tile(data_array, (n_points_total, *([1]*len(dims))))
+            case _:
+                raise ValueError(
+                    f"Invalid {name} data shape: {data_array.shape} with {self.n_frames=}, {self.n_points=}")
+        return out_array, dims
 
 
 def get_points_array(x, y, z):
@@ -148,42 +178,34 @@ def get_points_array(x, y, z):
     return points, n_frames, n_points
 
 
-def set_vertex_attribute(mesh, attribute_name, attribute_values):
-    if attribute_name not in mesh.attributes:
-        mesh.attributes.new(name=attribute_name, type="FLOAT", domain="POINT")
-    mesh.attributes[attribute_name].data.foreach_set("value", attribute_values)
-
-
 def set_vertex_colors(mesh, color):
-    """Add a point_color attribute to each vertex in the mesh with values given by `color`"""
-    if np.array(color).ndim == 1:
-        color = np.tile(color, (len(mesh.vertices), 1))
+    """Add a marker_color attribute to each vertex in `mesh` with values from (n_vertices)x(3 or 4) array `color`"""
     if color.shape[1] == 3:
         color = np.hstack([color, np.ones((len(color), 1))])
     elif not color.shape[1] == 4:
-        raise ValueError(f"Invalid color array shape {color.shape}, expectex Nx3 or Nx4")
+        raise ValueError(f"Invalid color array shape {color.shape}, expected Nx3 or Nx4")
     if len(mesh.vertices) != len(color):
         raise ValueError(f"Got {len(mesh.vertices)} vertices and {len(color)} color values")
 
-    if POINT_COLOR not in mesh.attributes:
-        mesh.attributes.new(name=POINT_COLOR, type="FLOAT_COLOR", domain="POINT")
-    mesh.attributes[POINT_COLOR].data.foreach_set("color", color.reshape(-1))
+    if MARKER_COLOR not in mesh.attributes:
+        mesh.attributes.new(name=MARKER_COLOR, type="FLOAT_COLOR", domain="POINT")
+    mesh.attributes[MARKER_COLOR].data.foreach_set("color", color.reshape(-1))
 
 
 def get_vertex_color_material():
-    """Create a material that obtains its color from the point_color attribute"""
+    """Create a material that obtains its color from the marker_color attribute"""
     material = bpy.data.materials.new("color")
     material.use_nodes = True
     color_node = material.node_tree.nodes.new("ShaderNodeAttribute")
-    color_node.attribute_name = POINT_COLOR
+    color_node.attribute_name = MARKER_COLOR
 
     material.node_tree.links.new(color_node.outputs["Color"],
                                  material.node_tree.nodes["Principled BSDF"].inputs["Base Color"])
     return material
 
 
-def add_mesh_markers(base_object, marker_type, randomize_rotation=False, marker_scale=None, n_frames=0,
-                     **marker_kwargs):
+def add_mesh_markers(base_object, marker_type, randomize_rotation=False, marker_scale=None,
+                     n_frames=0, **marker_kwargs):
     """Create a geometry node modifier that instances a mesh on each vertex.
     Args:
         base_object: object containing mesh with vertices to instance on.
@@ -205,6 +227,9 @@ def add_mesh_markers(base_object, marker_type, randomize_rotation=False, marker_
     modifier.node_group.inputs.new("NodeSocketFloat", "Frame Index")  # Input_4
     modifier["Input_4_use_attribute"] = True
     modifier["Input_4_attribute_name"] = FRAME_INDEX
+    modifier.node_group.inputs.new("NodeSocketVector", "Marker Rotation")  # Input_5
+    modifier["Input_5_use_attribute"] = True
+    modifier["Input_5_attribute_name"] = MARKER_ROTATION
 
     points_socket = node_linker.new_node(
         "GeometryNodeMeshToPoints",
@@ -237,7 +262,8 @@ def add_mesh_markers(base_object, marker_type, randomize_rotation=False, marker_
         points=points_socket,
         selection=None if n_frames is None else get_frame_selection_node(modifier, n_frames).outputs["Value"],
         instance=colored_mesh,
-        scale=marker_scale
+        rotation=node_linker.group_input.outputs["Marker Rotation"],
+        scale=marker_scale,
     )
     if randomize_rotation:
         # these rotation are not uniform (some orientations will be more likely than others)
