@@ -6,7 +6,7 @@ bl_info = {
     "description": "Adds a python API for plotting in blender",
     "author": "Linus Härenstam-Nielsen",
     "version": (1, 0, 0),
-    "blender": (3, 1, 2),
+    "blender": (3, 2, 0),
     "location": "Python console",
     "warning": "",
     "doc_url": "https://github.com/Linusnie/blender-plots",

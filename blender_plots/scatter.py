@@ -225,12 +225,6 @@ def add_mesh_markers(base_object, marker_type, randomize_rotation=False, marker_
     # order is important since keys are generically created in numerical order.
     modifier.node_group.inputs.new("NodeSocketMaterial", "Point Color")  # Input_2
     modifier.node_group.inputs.new("NodeSocketObject", "Point Instance")  # Input_3
-    modifier.node_group.inputs.new("NodeSocketFloat", "Frame Index")  # Input_4
-    modifier["Input_4_use_attribute"] = True
-    modifier["Input_4_attribute_name"] = FRAME_INDEX
-    modifier.node_group.inputs.new("NodeSocketVector", "Marker Rotation")  # Input_5
-    modifier["Input_5_use_attribute"] = True
-    modifier["Input_5_attribute_name"] = MARKER_ROTATION
 
     points_socket = node_linker.new_node(
         "GeometryNodeMeshToPoints",
@@ -262,12 +256,18 @@ def add_mesh_markers(base_object, marker_type, randomize_rotation=False, marker_
 
     if marker_scale is not None and np.array(marker_scale).shape == ():
         marker_scale = [marker_scale] * 3
+
+    marker_rotation = node_linker.new_node(
+        "GeometryNodeInputNamedAttribute",
+        data_type="FLOAT_VECTOR",
+        name=MARKER_ROTATION,
+    )
     instance_on_points_node = node_linker.new_node(
         "GeometryNodeInstanceOnPoints",
         points=points_socket,
         selection=None if n_frames is None else get_frame_selection_node(modifier, n_frames).outputs["Value"],
         instance=colored_mesh,
-        rotation=node_linker.group_input.outputs["Marker Rotation"],
+        rotation=marker_rotation.outputs["Attribute"],
         scale=marker_scale,
     )
     if randomize_rotation:
@@ -299,9 +299,6 @@ def add_sphere_markers(base_object, n_frames, **marker_kwargs):
     node_linker = bu.NodeLinker(modifier.node_group)
 
     modifier.node_group.inputs.new("NodeSocketMaterial", "Point Color")  # Input_2
-    modifier.node_group.inputs.new("NodeSocketFloat", "Frame Index")  # Input_3
-    modifier["Input_3_use_attribute"] = True
-    modifier["Input_3_attribute_name"] = FRAME_INDEX
 
     points = node_linker.new_node(
         "GeometryNodeMeshToPoints",
@@ -321,10 +318,15 @@ def add_sphere_markers(base_object, n_frames, **marker_kwargs):
 def get_frame_selection_node(modifier, n_frames):
     """Add node that filters points based on the Frame Index property."""
     node_linker = bu.NodeLinker(modifier.node_group)
+    frame_index = node_linker.new_node(
+        "GeometryNodeInputNamedAttribute",
+        data_type="FLOAT",
+        name=FRAME_INDEX,
+    )
     frame_selection_node = node_linker.new_node(
         "ShaderNodeMath",
         operation="COMPARE",
-        input_1=node_linker.group_input.outputs["Frame Index"],
+        input_1=frame_index.outputs[1],
         input_2=0.5
     )
 
