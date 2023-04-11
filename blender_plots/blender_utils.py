@@ -77,6 +77,13 @@ def new_empty(name, object_data=None, select=True):
     return new_object
 
 
+def add_modifier(base_object, modifier_type, **kwargs):
+    modifier = base_object.modifiers.new(name=modifier_type.lower(), type=modifier_type)
+    for key, value in kwargs.items():
+        setattr(modifier, key, value)
+    return modifier
+
+
 def set_vertex_attribute(mesh, attribute_name,  attribute_values, attribute_type="FLOAT"):
     if attribute_name not in mesh.attributes:
         mesh.attributes.new(name=attribute_name, type=attribute_type, domain="POINT")

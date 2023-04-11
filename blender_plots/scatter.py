@@ -1,4 +1,5 @@
 import numpy as np
+import numbers
 
 import bpy
 import mathutils as mu
@@ -247,6 +248,8 @@ def add_mesh_markers(base_object, marker_type, randomize_rotation=False, marker_
             "GeometryNodeObjectInfo",
             Object=node_linker.group_input.outputs["Point Instance"]
         ).outputs["Geometry"]
+        marker_type.hide_viewport = True
+        marker_type.hide_render = True
     else:
         raise TypeError(f"Invalid marker type: {marker_type}, expected bpy.types.Mesh, bpy.Types.Object, "
                         f"or one of: {', '.join(MARKER_TYPES)}")
@@ -257,6 +260,8 @@ def add_mesh_markers(base_object, marker_type, randomize_rotation=False, marker_
         material=node_linker.group_input.outputs["Point Color"]
     ).outputs["Geometry"]
 
+    if marker_scale is not None and np.array(marker_scale).shape == ():
+        marker_scale = [marker_scale] * 3
     instance_on_points_node = node_linker.new_node(
         "GeometryNodeInstanceOnPoints",
         points=points_socket,
