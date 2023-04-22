@@ -12,19 +12,38 @@ making plots. It currently supports scatterplots through `bplt.Scatter`.
 
 ![out_15fps_v3_loop](https://user-images.githubusercontent.com/12471058/175826002-dc6ba8d5-a1c1-4b27-ae64-fc8085e46958.gif)
 
-## Getting started
+## Installation
 
-* Install the addon:
-    * Option1: Go to `Code > Download ZIP` above and then in blender go to `Edit > Preferences > Add-ons > install` and
-      select the downloaded file.
-    * Option2: Git-clone this repo to the blender addons folder.
+### Option 1: Install with pip (recommended)
+
+Run the following command in a terminal window:
+
+```bash
+[path_to_blender]/[version_number]/python/bin/python3.10 -m pip install blender_plots
+```
+
+This will download the library to `[path_to_blender]/[version_number]/python/lib/python3.10/site-packages/blender-plots`.
+
+If you're using `blender_notebook` as described below you can instead pip install to the virtual environment to keep the Blender python environment clean. However with this method the library won't be available when lauching Blender without the notebook.
+
+### Option 2: Install as addon
+
+* Go to `Code > Download ZIP` above and then in blender go to `Edit > Preferences > Add-ons > install` and select the downloaded file (or simply git-clone this repo to the blender addons folder).
 * Go to the addons panel in blender, search for `blender plots` and click on the tick-box.
 * You should now be able to run `import blender_plots as bplt` in the python console.
 
-Since the built-in text editor isn't great I recommend using [jupyterlab](https://jupyter.org/)
-with
-a [blender kernel](https://github.com/cheng-chi/blender_notebook)
-for advanced use-cases.
+### Set up blender notebook (optional)
+
+Since the built-in code editor isn't great I recommend using jupyter notebooks with a [blender kernel](https://github.com/cheng-chi/blender_notebook) for script heavy use cases.
+
+In a virtual environment, run:
+
+```bash
+python -m pip install pip install blender_notebook ipykernel
+blender_notebook install --blender-exec [path_to_blender]/blender --kernel-name blender
+```
+
+You should then be able to select `blender` as kernel in your preferred notebook editor.
 
 ## Examples
 
@@ -35,7 +54,7 @@ containing coordinates to plot (or equivalently a single `Nx3` array as the firs
 the `color=` argument, which expects a`Nx3` or `Nx4` numpy array with RGB or RGBA color values. Passing in a single RGB
 or RGBA value sets the same color for all points.
 
-```
+```python
 import numpy as np
 import blender_plots as bplt
 n, l = 150, 100
@@ -55,7 +74,7 @@ bplt.Scatter(x, y, z, color=(0, 0, 1), name="blue")
 
 To get an animated plot, just pass in x, y, z as `TxN` arrays instead (or `TxNx3` as the first argument):
 
-```
+```python
 # plot animated function
 n, l, T = 150, 100, 100
 t, x, y = np.meshgrid(np.arange(0, T), np.linspace(0, l, n), np.linspace(0, l, n), indexing='ij')
@@ -75,7 +94,7 @@ https://user-images.githubusercontent.com/12471058/175827154-f2788971-78d3-4778-
 Since all heavy operations are done through numpy arrays or blender nodes it's possible to visualize large point clouds
 with minimal overhead. For example, Here is one with 1M points:
 
-```
+```python
 import numpy as np
 import blender_plots as bplt
 points = np.loadtxt("/home/linus/Downloads/tikal-guatemala-point-cloud/source/fovea_tikal_guatemala_pcloud.asc")
@@ -109,7 +128,7 @@ docs we can see that it has the parameters `Radius Top` and `Radius Bottom`, the
 passing `radius_top=...`
 and `radius_bottom=...` to `bplt.Scatter`:
 
-```
+```python
 scatter = bplt.Scatter(
     np.random.rand(n, 3)*50,
     color=np.random.rand(n, 3),
@@ -125,7 +144,7 @@ scatter = bplt.Scatter(
 Similarly, the [cube node](https://docs.blender.org/manual/en/latest/modeling/geometry_nodes/mesh_primitives/cube.html)
 has a vector-valued `Size` parameter:
 
-```
+```python
 bplt.Scatter(
     np.random.rand(n, 3)*50,
     color=np.random.rand(n, 3),
@@ -147,7 +166,7 @@ The supported formats are XYZ euler angles in radians (by passing an Nx3 or NxTx
 (by passing a Nx3x3 or NxTx3x3 array). As shown in the previous examples passing `randomize_rotation=True` assigns a
 random rotation to each marker.
 
-```
+```python
 def get_rotaitons_facing_point(origin, points):
     n_points = len(points)
     d = (origin - points) / np.linalg.norm(origin - points, axis=-1)[:, None]
@@ -175,7 +194,7 @@ s = bplt.Scatter(
 
 You can also use an existing mesh by passing it to `marker_type=...`:
 
-```
+```python
 from colorsys import hls_to_rgb
 bpy.ops.mesh.primitive_monkey_add()
 monkey = bpy.context.active_object
@@ -203,7 +222,7 @@ scatter = bplt.Scatter(
 You can get perfect spheres as markers by passing in `marker_type="spheres"`. Though note that these are only visible in
 the rendered view and with the rendering engine set to cycles
 
-```
+```python
 bplt.Scatter(
     np.random.rand(n, 3)*50,
     color=np.random.rand(n, 3),
