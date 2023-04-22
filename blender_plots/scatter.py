@@ -50,7 +50,7 @@ class Scatter:
         self.points = points
         if marker_type == "spheres":
             self.marker_modifier = add_sphere_markers(self.base_object, n_frames=self.n_frames, **marker_kwargs)
-        else:
+        elif marker_type is not None:
             self.marker_modifier = add_mesh_markers(
                 self.base_object,
                 randomize_rotation=randomize_rotation,
