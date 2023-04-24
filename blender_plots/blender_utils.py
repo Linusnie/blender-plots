@@ -1,5 +1,8 @@
+import numpy as np
+
 import bpy
 
+MARKER_COLOR = "marker_color"
 
 class NodeLinker:
     """Wrapper for bpy.types.GeometryNodeTree which simplifies creating large node trees."""
@@ -115,3 +118,28 @@ def geometry_node_group_empty_new():
     group.links.new(output_node.inputs[0], input_node.outputs[0])
 
     return group
+
+def set_vertex_colors(mesh, color):
+    """Add a marker_color attribute to each vertex in `mesh` with values from (n_vertices)x(3 or 4) array `color`"""
+    if color.shape[1] == 3:
+        color = np.hstack([color, np.ones((len(color), 1))])
+    elif not color.shape[1] == 4:
+        raise ValueError(f"Invalid color array shape {color.shape}, expected Nx3 or Nx4")
+    if len(mesh.vertices) != len(color):
+        raise ValueError(f"Got {len(mesh.vertices)} vertices and {len(color)} color values")
+
+    if MARKER_COLOR not in mesh.attributes:
+        mesh.attributes.new(name=MARKER_COLOR, type="FLOAT_COLOR", domain="POINT")
+    mesh.attributes[MARKER_COLOR].data.foreach_set("color", color.reshape(-1))
+
+
+def get_vertex_color_material():
+    """Create a material that obtains its color from the marker_color attribute"""
+    material = bpy.data.materials.new("color")
+    material.use_nodes = True
+    color_node = material.node_tree.nodes.new("ShaderNodeAttribute")
+    color_node.attribute_name = MARKER_COLOR
+
+    material.node_tree.links.new(color_node.outputs["Color"],
+                                 material.node_tree.nodes["Principled BSDF"].inputs["Base Color"])
+    return material

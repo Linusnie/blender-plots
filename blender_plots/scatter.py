@@ -4,9 +4,9 @@ import numbers
 import bpy
 import mathutils as mu
 import blender_plots.blender_utils as bu
+from blender_plots import plots_base
 
 FRAME_INDEX = "frame_index"
-MARKER_COLOR = "marker_color"
 MARKER_ROTATION = "marker_rotation"
 MARKER_TYPES = {
     "cones": "GeometryNodeMeshCone",
@@ -20,7 +20,7 @@ MARKER_TYPES = {
 }
 
 
-class Scatter:
+class Scatter(plots_base.Plot):
     """Create a scatterplot.
 
     Args:
@@ -41,41 +41,31 @@ class Scatter:
 
     def __init__(self, x, y=None, z=None, color=None, name="scatter", marker_type="cubes", marker_scale=None,
                  marker_rotation=None, randomize_rotation=False, **marker_kwargs):
-        self.name = name
-        self.base_object = None
-        self.mesh = None
-        self.color_material = None
+        super(Scatter, self).__init__(x, y, z, color=color, name=name, n_dims=1)
 
-        points, self.n_frames, self.n_points = get_points_array(x, y, z)
-        self.points = points
+        self.marker_modifier = self.base_object.modifiers.new(type="NODES", name="spheres")
         if marker_type == "spheres":
-            self.marker_modifier = add_sphere_markers(self.base_object, n_frames=self.n_frames, **marker_kwargs)
+            add_sphere_markers(self.marker_modifier, n_frames=self.n_frames, **marker_kwargs)
         elif marker_type is not None:
-            self.marker_modifier = add_mesh_markers(
-                self.base_object,
+            add_mesh_markers(
+                self.marker_modifier,
                 randomize_rotation=randomize_rotation,
                 marker_type=marker_type,
                 marker_scale=marker_scale,
                 n_frames=self.n_frames,
                 **marker_kwargs
             )
-        self.color = color
+        self.marker_modifier["Input_2"] = self.color_material
         self.marker_rotation = marker_rotation
 
     @property
-    def points(self):
-        return self._points
-
-    @points.setter
-    def points(self, points):
-        self._points = points
-        self.update_points()
+    def n_points(self):
+        return self.dims[0]
 
     def update_points(self):
-        if self.mesh is None:
-            self.mesh = bpy.data.meshes.new(self.name)
+        if len(self.mesh.vertices) == 0:
             self.mesh.from_pydata(self._points.reshape(-1, 3), [], [])
-        else:
+        elif len(self.mesh.vertices) == len(self._points):
             self.mesh.vertices.foreach_set("co", self._points.reshape(-1))
 
         if self.n_frames is not None:
@@ -84,28 +74,8 @@ class Scatter:
                 np.arange(0, self.n_frames)[None].repeat(self.n_points, axis=1).reshape(-1)
             )
 
-        if self.base_object is None:
-            self.base_object = bu.new_empty(self.name, self.mesh)
-        else:
-            self.base_object.data = self.mesh
+        self.base_object.data = self.mesh
         self.mesh.update()
-
-    @property
-    def color(self):
-        return self._color
-
-    @color.setter
-    def color(self, color):
-        self._color = np.array(color) if color is not None else color
-        self.update_color()
-
-    def update_color(self):
-        if self._color is not None:
-            color, _ = self.tile_data(self._color, [[3], [4]], "color")
-            set_vertex_colors(self.mesh, color)
-            self.color_material = get_vertex_color_material()
-            self.mesh.materials.append(self.color_material)
-            self.marker_modifier["Input_2"] = self.color_material
 
     @property
     def marker_rotation(self):
@@ -142,89 +112,25 @@ class Scatter:
         return out_array, dims
 
 
-def get_points_array(x, y, z):
-    """Parses x,y,z to a Nx3 or NxTx3 array of points."""
-    if (y is None) and (z is None):
-        # only x provided, parse it as Nx3 or TxNx3
-        x = np.array(x)
-        match x.shape:
-            case (3, ):
-                points = x.reshape(1, 3)
-                n_frames, n_points = None, 1
-            case (n, 3, ):
-                points = x
-                n_frames, n_points = None, n
-            case (t, n, 3, ):
-                points = x
-                n_frames, n_points = t, n
-            case _:
-                raise ValueError(f"Invalid shape for points: {x.shape=}, expected Nx3 or TxNx3")
-    elif (y is not None) and (z is not None):
-        # parse x,y,z as N,N,N or TxN,TxN,TxN
-        x, y, z = np.array(x), np.array(y), np.array(z)
-        match x.shape, y.shape, z.shape:
-            case (), (), ():
-                points = np.array([x, y, z]).reshape(1, 3)
-                n_frames, n_points = None, 1
-            case (n, ), (m, ), (k, ) if n == m == k:
-                points = np.stack([x, y, z], axis=-1)
-                n_frames, n_points = None, n
-            case (t, n), (r, m), (s, k) if t == r == s and n == m == k:
-                points = np.stack([x, y, z], axis=-1)
-                n_frames, n_points = t, n
-            case _:
-                raise ValueError(f"Incompatible shapes: {x.shape=}, {y.shape=}, {z.shape=}")
-    else:
-        raise ValueError(f"Eiter both y and z needs to be provided, or neither")
-    return points, n_frames, n_points
-
-
-def set_vertex_colors(mesh, color):
-    """Add a marker_color attribute to each vertex in `mesh` with values from (n_vertices)x(3 or 4) array `color`"""
-    if color.shape[1] == 3:
-        color = np.hstack([color, np.ones((len(color), 1))])
-    elif not color.shape[1] == 4:
-        raise ValueError(f"Invalid color array shape {color.shape}, expected Nx3 or Nx4")
-    if len(mesh.vertices) != len(color):
-        raise ValueError(f"Got {len(mesh.vertices)} vertices and {len(color)} color values")
-
-    if MARKER_COLOR not in mesh.attributes:
-        mesh.attributes.new(name=MARKER_COLOR, type="FLOAT_COLOR", domain="POINT")
-    mesh.attributes[MARKER_COLOR].data.foreach_set("color", color.reshape(-1))
-
-
-def get_vertex_color_material():
-    """Create a material that obtains its color from the marker_color attribute"""
-    material = bpy.data.materials.new("color")
-    material.use_nodes = True
-    color_node = material.node_tree.nodes.new("ShaderNodeAttribute")
-    color_node.attribute_name = MARKER_COLOR
-
-    material.node_tree.links.new(color_node.outputs["Color"],
-                                 material.node_tree.nodes["Principled BSDF"].inputs["Base Color"])
-    return material
-
-
-def add_mesh_markers(base_object, marker_type, randomize_rotation=False, marker_scale=None,
+def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, marker_scale=None,
                      n_frames=0, **marker_kwargs):
     """Create a geometry node modifier that instances a mesh on each vertex.
     Args:
-        base_object: object containing mesh with vertices to instance on.
+        base_modifier: modifier to add markers to.
         marker_type: name of marker type (see MARKER_TYPES), or a blender mesh/object to use as marker
         randomize_rotation: if True each mesh instance will be given a random rotation (uniform euler angles)
         marker_scale: xyz scale for markers
         n_frames: number of frames to animate, no animation if set to 0.
         marker_kwargs: additional arguments for configuring markers
     """
-    modifier = base_object.modifiers.new(type="NODES", name="spheres")
-    if modifier.node_group is None:
-        modifier.node_group = bu.geometry_node_group_empty_new()
-    node_linker = bu.NodeLinker(modifier.node_group)
+    if base_modifier.node_group is None:
+        base_modifier.node_group = bu.geometry_node_group_empty_new()
+    node_linker = bu.NodeLinker(base_modifier.node_group)
 
     # create all inputs, some might be unused depending on input parameters.
     # order is important since keys are generically created in numerical order.
-    modifier.node_group.inputs.new("NodeSocketMaterial", "Point Color")  # Input_2
-    modifier.node_group.inputs.new("NodeSocketObject", "Point Instance")  # Input_3
+    base_modifier.node_group.inputs.new("NodeSocketMaterial", "Point Color")  # Input_2
+    base_modifier.node_group.inputs.new("NodeSocketObject", "Point Instance")  # Input_3
 
     points_socket = node_linker.new_node(
         "GeometryNodeMeshToPoints",
@@ -234,10 +140,10 @@ def add_mesh_markers(base_object, marker_type, randomize_rotation=False, marker_
     if marker_type in MARKER_TYPES:
         mesh_socket = node_linker.new_node(node_type=MARKER_TYPES[marker_type], **marker_kwargs).outputs["Mesh"]
     elif isinstance(marker_type, bpy.types.Mesh) or isinstance(marker_type, bpy.types.Object):
-        # use the supplied mesh by adding it as an input socket to the modifier
-        modifier["Input_3"] = marker_type
-        modifier.show_viewport = False
-        modifier.show_viewport = True
+        # use the supplied mesh by adding it as an input socket to the base_modifier
+        base_modifier["Input_3"] = marker_type
+        base_modifier.show_viewport = False
+        base_modifier.show_viewport = True
         mesh_socket = node_linker.new_node(
             "GeometryNodeObjectInfo",
             Object=node_linker.group_input.outputs["Point Instance"]
@@ -265,7 +171,7 @@ def add_mesh_markers(base_object, marker_type, randomize_rotation=False, marker_
     instance_on_points_node = node_linker.new_node(
         "GeometryNodeInstanceOnPoints",
         points=points_socket,
-        selection=None if n_frames is None else get_frame_selection_node(modifier, n_frames).outputs["Value"],
+        selection=None if n_frames is None else get_frame_selection_node(base_modifier, n_frames).outputs["Value"],
         instance=colored_mesh,
         rotation=marker_rotation.outputs["Attribute"],
         scale=marker_scale,
@@ -282,28 +188,26 @@ def add_mesh_markers(base_object, marker_type, randomize_rotation=False, marker_
         geometry=instance_on_points_node.outputs["Instances"]
     )
     node_linker.new_node("NodeGroupOutput", geometry=realize_instances_node.outputs["Geometry"])
-    return modifier
 
 
-def add_sphere_markers(base_object, n_frames, **marker_kwargs):
+def add_sphere_markers(base_modifier, n_frames, **marker_kwargs):
     """Create a geometry node modifier that adds a point on each vertex. This will result in perfect spheres, only
         visible in rendered view with rendering engine set to `Cycles`
     Args:
-        base_object: object containing mesh with vertices to instance on.
+        base_modifier: modifier to add sphere markers to.
         n_frames: number of frames to animate, no animation if set to 0.
         marker_kwargs: arguments to passed to node_linker.new_node when generating point node. e.g. radius=0.1
     """
-    modifier = base_object.modifiers.new(type="NODES", name="spheres")
-    if modifier.node_group is None:
-        modifier.node_group = bu.geometry_node_group_empty_new()
-    node_linker = bu.NodeLinker(modifier.node_group)
+    if base_modifier.node_group is None:
+        base_modifier.node_group = bu.geometry_node_group_empty_new()
+    node_linker = bu.NodeLinker(base_modifier.node_group)
 
-    modifier.node_group.inputs.new("NodeSocketMaterial", "Point Color")  # Input_2
+    base_modifier.node_group.inputs.new("NodeSocketMaterial", "Point Color")  # Input_2
 
     points = node_linker.new_node(
         "GeometryNodeMeshToPoints",
         mesh=node_linker.group_input.outputs["Geometry"],
-        selection=None if n_frames is None else get_frame_selection_node(modifier, n_frames).outputs["Value"],
+        selection=None if n_frames is None else get_frame_selection_node(base_modifier, n_frames).outputs["Value"],
         **marker_kwargs,
     ).outputs["Points"]
     node = node_linker.new_node(
@@ -312,7 +216,6 @@ def add_sphere_markers(base_object, n_frames, **marker_kwargs):
         material=node_linker.group_input.outputs["Point Color"]
     )
     node_linker.new_node("NodeGroupOutput", geometry=node.outputs["Geometry"])
-    return modifier
 
 
 def get_frame_selection_node(modifier, n_frames):
