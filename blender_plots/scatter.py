@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import numpy as np
 import numbers
 
@@ -6,18 +7,21 @@ import mathutils as mu
 import blender_plots.blender_utils as bu
 from blender_plots import plots_base
 
-FRAME_INDEX = "frame_index"
-MARKER_ROTATION = "marker_rotation"
-MARKER_TYPES = {
-    "cones": "GeometryNodeMeshCone",
-    "cubes": "GeometryNodeMeshCube",
-    "cylinders": "GeometryNodeMeshCylinder",
-    "grids": "GeometryNodeMeshGrid",
-    "ico_spheres": "GeometryNodeMeshIcoSphere",
-    "circles": "GeometryNodeMeshCircle",
-    "lines": "GeometryNodeMeshLine",
-    "uv_spheres": "GeometryNodeMeshUVSphere",
-}
+
+
+@dataclass
+class Constants:
+    MARKER_ROTATION = "marker_rotation"
+    MARKER_TYPES = {
+        "cones": "GeometryNodeMeshCone",
+        "cubes": "GeometryNodeMeshCube",
+        "cylinders": "GeometryNodeMeshCylinder",
+        "grids": "GeometryNodeMeshGrid",
+        "ico_spheres": "GeometryNodeMeshIcoSphere",
+        "circles": "GeometryNodeMeshCircle",
+        "lines": "GeometryNodeMeshLine",
+        "uv_spheres": "GeometryNodeMeshUVSphere",
+    }
 
 
 class Scatter(plots_base.Plot):
@@ -70,7 +74,7 @@ class Scatter(plots_base.Plot):
 
         if self.n_frames is not None:
             bu.set_vertex_attribute(
-                self.mesh, FRAME_INDEX,
+                self.mesh, bu.Constants.FRAME_INDEX,
                 np.arange(0, self.n_frames)[None].repeat(self.n_points, axis=1).reshape(-1)
             )
 
@@ -91,7 +95,7 @@ class Scatter(plots_base.Plot):
             marker_rotation, rotation_dims = self.tile_data(self._marker_rotation, [[3], [3, 3]], "marker rotation")
             if rotation_dims == [3, 3]:
                 marker_rotation = np.stack([np.array(mu.Matrix(r).to_euler()) for r in marker_rotation])
-            bu.set_vertex_attribute(self.mesh, MARKER_ROTATION, marker_rotation, "FLOAT_VECTOR")
+            bu.set_vertex_attribute(self.mesh, Constants.MARKER_ROTATION, marker_rotation, "FLOAT_VECTOR")
 
     def tile_data(self, data_array, valid_dims, name=""):
         """Tile or reshape data_array with shape NxTx(dims), Nx(dims) or (dims) to shape (N*T)x(dims)."""
@@ -137,8 +141,8 @@ def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, marke
         mesh=node_linker.group_input.outputs["Geometry"]
     ).outputs["Points"]
 
-    if marker_type in MARKER_TYPES:
-        mesh_socket = node_linker.new_node(node_type=MARKER_TYPES[marker_type], **marker_kwargs).outputs["Mesh"]
+    if marker_type in Constants.MARKER_TYPES:
+        mesh_socket = node_linker.new_node(node_type=Constants.MARKER_TYPES[marker_type], **marker_kwargs).outputs["Mesh"]
     elif isinstance(marker_type, bpy.types.Mesh) or isinstance(marker_type, bpy.types.Object):
         # use the supplied mesh by adding it as an input socket to the base_modifier
         base_modifier["Input_3"] = marker_type
@@ -152,7 +156,7 @@ def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, marke
         marker_type.hide_render = True
     else:
         raise TypeError(f"Invalid marker type: {marker_type}, expected bpy.types.Mesh, bpy.Types.Object, "
-                        f"or one of: {', '.join(MARKER_TYPES)}")
+                        f"or one of: {', '.join(Constants.MARKER_TYPES)}")
 
     colored_mesh = node_linker.new_node(
         "GeometryNodeSetMaterial",
@@ -166,7 +170,7 @@ def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, marke
     marker_rotation = node_linker.new_node(
         "GeometryNodeInputNamedAttribute",
         data_type="FLOAT_VECTOR",
-        name=MARKER_ROTATION,
+        name=Constants.MARKER_ROTATION,
     )
     instance_on_points_node = node_linker.new_node(
         "GeometryNodeInstanceOnPoints",
@@ -224,7 +228,7 @@ def get_frame_selection_node(modifier, n_frames):
     frame_index = node_linker.new_node(
         "GeometryNodeInputNamedAttribute",
         data_type="FLOAT",
-        name=FRAME_INDEX,
+        name=bu.Constants.FRAME_INDEX,
     )
     frame_selection_node = node_linker.new_node(
         "ShaderNodeMath",

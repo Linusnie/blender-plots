@@ -1,8 +1,14 @@
+from dataclasses import dataclass
 import numpy as np
 
 import bpy
 
-MARKER_COLOR = "marker_color"
+
+@dataclass
+class Constants:
+    MARKER_COLOR = "marker_color"
+    FRAME_INDEX = "frame_index"
+
 
 class NodeLinker:
     """Wrapper for bpy.types.GeometryNodeTree which simplifies creating large node trees."""
@@ -128,9 +134,9 @@ def set_vertex_colors(mesh, color):
     if len(mesh.vertices) != len(color):
         raise ValueError(f"Got {len(mesh.vertices)} vertices and {len(color)} color values")
 
-    if MARKER_COLOR not in mesh.attributes:
-        mesh.attributes.new(name=MARKER_COLOR, type="FLOAT_COLOR", domain="POINT")
-    mesh.attributes[MARKER_COLOR].data.foreach_set("color", color.reshape(-1))
+    if Constants.MARKER_COLOR not in mesh.attributes:
+        mesh.attributes.new(name=Constants.MARKER_COLOR, type="FLOAT_COLOR", domain="POINT")
+    mesh.attributes[Constants.MARKER_COLOR].data.foreach_set("color", color.reshape(-1))
 
 
 def get_vertex_color_material():
@@ -138,7 +144,7 @@ def get_vertex_color_material():
     material = bpy.data.materials.new("color")
     material.use_nodes = True
     color_node = material.node_tree.nodes.new("ShaderNodeAttribute")
-    color_node.attribute_name = MARKER_COLOR
+    color_node.attribute_name = Constants.MARKER_COLOR
 
     material.node_tree.links.new(color_node.outputs["Color"],
                                  material.node_tree.nodes["Principled BSDF"].inputs["Base Color"])
