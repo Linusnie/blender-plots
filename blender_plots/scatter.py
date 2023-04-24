@@ -47,39 +47,22 @@ class Scatter(plots_base.Plot):
                  marker_rotation=None, randomize_rotation=False, **marker_kwargs):
         super(Scatter, self).__init__(x, y, z, color=color, name=name, n_dims=1)
 
-        self.marker_modifier = self.base_object.modifiers.new(type="NODES", name="spheres")
         if marker_type == "spheres":
-            add_sphere_markers(self.marker_modifier, n_frames=self.n_frames, **marker_kwargs)
+            add_sphere_markers(self.modifier, n_frames=self.n_frames, **marker_kwargs)
         elif marker_type is not None:
             add_mesh_markers(
-                self.marker_modifier,
+                self.modifier,
                 randomize_rotation=randomize_rotation,
                 marker_type=marker_type,
                 marker_scale=marker_scale,
                 n_frames=self.n_frames,
                 **marker_kwargs
             )
-        self.marker_modifier["Input_2"] = self.color_material
+        self.modifier["Input_2"] = self.color_material
         self.marker_rotation = marker_rotation
 
-    @property
-    def n_points(self):
-        return self.dims[0]
-
-    def update_points(self):
-        if len(self.mesh.vertices) == 0:
-            self.mesh.from_pydata(self._points.reshape(-1, 3), [], [])
-        elif len(self.mesh.vertices) == len(self._points):
-            self.mesh.vertices.foreach_set("co", self._points.reshape(-1))
-
-        if self.n_frames is not None:
-            bu.set_vertex_attribute(
-                self.mesh, bu.Constants.FRAME_INDEX,
-                np.arange(0, self.n_frames)[None].repeat(self.n_points, axis=1).reshape(-1)
-            )
-
-        self.base_object.data = self.mesh
-        self.mesh.update()
+    def get_geometry(self):
+        return self._points.reshape(-1, 3), [], []
 
     @property
     def marker_rotation(self):
@@ -96,24 +79,6 @@ class Scatter(plots_base.Plot):
             if rotation_dims == [3, 3]:
                 marker_rotation = np.stack([np.array(mu.Matrix(r).to_euler()) for r in marker_rotation])
             bu.set_vertex_attribute(self.mesh, Constants.MARKER_ROTATION, marker_rotation, "FLOAT_VECTOR")
-
-    def tile_data(self, data_array, valid_dims, name=""):
-        """Tile or reshape data_array with shape NxTx(dims), Nx(dims) or (dims) to shape (N*T)x(dims)."""
-        match data_array.shape:
-            case (self.n_frames, self.n_points, *dims) if dims in valid_dims:
-                out_array = data_array.reshape(self.n_frames * self.n_points, *dims)
-            case (self.n_points, *dims) if dims in valid_dims:
-                if self.n_frames is not None:
-                    out_array = np.tile(data_array, (self.n_frames, *([1] * len(dims))))
-                else:
-                    out_array = data_array
-            case (*dims, ) if dims in valid_dims:
-                n_points_total = self.n_points * (1 if self.n_frames is None else self.n_frames)
-                out_array = np.tile(data_array, (n_points_total, *([1]*len(dims))))
-            case _:
-                raise ValueError(
-                    f"Invalid {name} data shape: {data_array.shape} with {self.n_frames=}, {self.n_points=}")
-        return out_array, dims
 
 
 def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, marker_scale=None,
@@ -175,7 +140,7 @@ def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, marke
     instance_on_points_node = node_linker.new_node(
         "GeometryNodeInstanceOnPoints",
         points=points_socket,
-        selection=None if n_frames is None else get_frame_selection_node(base_modifier, n_frames).outputs["Value"],
+        selection=None if n_frames is None else bu.get_frame_selection_node(base_modifier, n_frames).outputs["Value"],
         instance=colored_mesh,
         rotation=marker_rotation.outputs["Attribute"],
         scale=marker_scale,
@@ -211,7 +176,7 @@ def add_sphere_markers(base_modifier, n_frames, **marker_kwargs):
     points = node_linker.new_node(
         "GeometryNodeMeshToPoints",
         mesh=node_linker.group_input.outputs["Geometry"],
-        selection=None if n_frames is None else get_frame_selection_node(base_modifier, n_frames).outputs["Value"],
+        selection=None if n_frames is None else bu.get_frame_selection_node(base_modifier, n_frames).outputs["Value"],
         **marker_kwargs,
     ).outputs["Points"]
     node = node_linker.new_node(
@@ -220,30 +185,3 @@ def add_sphere_markers(base_modifier, n_frames, **marker_kwargs):
         material=node_linker.group_input.outputs["Point Color"]
     )
     node_linker.new_node("NodeGroupOutput", geometry=node.outputs["Geometry"])
-
-
-def get_frame_selection_node(modifier, n_frames):
-    """Add node that filters points based on the Frame Index property."""
-    node_linker = bu.NodeLinker(modifier.node_group)
-    frame_index = node_linker.new_node(
-        "GeometryNodeInputNamedAttribute",
-        data_type="FLOAT",
-        name=bu.Constants.FRAME_INDEX,
-    )
-    frame_selection_node = node_linker.new_node(
-        "ShaderNodeMath",
-        operation="COMPARE",
-        input_1=frame_index.outputs[1],
-        input_2=0.5
-    )
-
-    action = bpy.data.actions.new("AnimationAction")
-    fcurve = action.fcurves.new(data_path='nodes["Math"].inputs[0].default_value', index=0)
-    fcurve.keyframe_points.add(2)
-    fcurve.keyframe_points.foreach_set("co", [0, 0, n_frames, n_frames])
-    bpy.context.scene.frame_end = n_frames - 1
-
-    modifier.node_group.animation_data_create()
-    modifier.node_group.animation_data.action = action
-
-    return frame_selection_node

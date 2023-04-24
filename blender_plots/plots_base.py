@@ -12,14 +12,26 @@ class Plot:
         self.color_material = None
         self.color_material = None
         self._points = None
+        self.modifier = self.base_object.modifiers.new(type="NODES", name=name)
 
         points, self.n_frames, *self.dims = get_points_array(x, y, z, n_dims)
         self.points = points
         self.color = color
 
     @property
+    def n_points(self):
+        return np.prod(self.dims)
+
+    @property
+    def n_vertices(self):
+        return self.n_points * (1 if self.n_frames is None else self.n_frames)
+
+    @property
     def points(self):
         return self._points
+
+    def get_geometry(self):
+        raise NotImplementedError
 
     @points.setter
     def points(self, points):
@@ -29,7 +41,23 @@ class Plot:
         self.update_points()
 
     def update_points(self):
-        raise NotImplementedError
+        if len(self.mesh.vertices) == 0:
+            vertices, edges, faces = self.get_geometry()
+            self.mesh.from_pydata(vertices, edges, faces)
+        elif len(self.mesh.vertices) == len(self._points.reshape(-1, 3)):
+            self.mesh.vertices.foreach_set("co", self._points.reshape(-1))
+        else:
+            raise ValueError(f"Can't change number of vertices,"
+                             f"was {len(self.mesh.vertices)=}, got {self._point.shape=}.")
+
+        if self.n_frames is not None:
+            bu.set_vertex_attribute(
+                self.mesh, bu.Constants.FRAME_INDEX,
+                np.arange(0, self.n_frames)[None].repeat(self.n_points, axis=1).reshape(-1)
+            )
+
+        self.base_object.data = self.mesh
+        self.mesh.update()
 
     @property
     def color(self):
@@ -46,6 +74,26 @@ class Plot:
             bu.set_vertex_colors(self.mesh, color)
             self.color_material = bu.get_vertex_color_material()
             self.mesh.materials.append(self.color_material)
+
+    def tile_data(self, data_array, valid_dims, name=""):
+        """Tile or reshape data_array with shape TxNx(dims), Nx(dims) or (dims) to shape (T*N)x(dims)."""
+        if len(self.dims) != 1:
+            raise NotImplementedError("Only 1D data can be tiled with base class.")
+
+        match data_array.shape:
+            case (self.n_frames, self.n_points, *dims) if dims in valid_dims:
+                out_array = data_array.reshape(self.n_vertices, *dims)
+            case (self.n_points, *dims) if dims in valid_dims:
+                if self.n_frames is not None:
+                    out_array = np.tile(data_array, (self.n_frames, *([1] * len(dims))))
+                else:
+                    out_array = data_array
+            case (*dims, ) if dims in valid_dims:
+                out_array = np.tile(data_array, (self.n_vertices, *([1]*len(dims))))
+            case _:
+                raise ValueError(
+                    f"Invalid {name} data shape: {data_array.shape} with {self.n_frames=}, {self.n_points=}")
+        return out_array, dims
 
 
 def get_points_array(x, y, z, n_dims=1):

@@ -44,7 +44,7 @@ class NodeLinker:
                         blender_key = python_arg_to_blender_key(key)
                 if isinstance(value, bpy.types.NodeSocket):
                     self.link(value, node.inputs[blender_key])
-                elif isinstance(blender_key, int) or blender_key in node.inputs:
+                elif (isinstance(blender_key, int) or blender_key in node.inputs) and hasattr(node.inputs[blender_key], "default_value"):
                     node.inputs[blender_key].default_value = value
                 elif hasattr(node, key):
                     setattr(node, key, value)
@@ -149,3 +149,29 @@ def get_vertex_color_material():
     material.node_tree.links.new(color_node.outputs["Color"],
                                  material.node_tree.nodes["Principled BSDF"].inputs["Base Color"])
     return material
+
+def get_frame_selection_node(modifier, n_frames):
+    """Add node that filters points based on the Frame Index property."""
+    node_linker = NodeLinker(modifier.node_group)
+    frame_index = node_linker.new_node(
+        "GeometryNodeInputNamedAttribute",
+        data_type="FLOAT",
+        name=Constants.FRAME_INDEX,
+    )
+    frame_selection_node = node_linker.new_node(
+        "ShaderNodeMath",
+        operation="COMPARE",
+        input_1=frame_index.outputs[1],
+        input_2=0.5
+    )
+
+    action = bpy.data.actions.new("AnimationAction")
+    fcurve = action.fcurves.new(data_path='nodes["Math"].inputs[0].default_value', index=0)
+    fcurve.keyframe_points.add(2)
+    fcurve.keyframe_points.foreach_set("co", [0, 0, n_frames, n_frames])
+    bpy.context.scene.frame_end = n_frames - 1
+
+    modifier.node_group.animation_data_create()
+    modifier.node_group.animation_data.action = action
+
+    return frame_selection_node
