@@ -47,9 +47,9 @@ You should then be able to select `blender` as kernel in your preferred notebook
 
 ## Examples
 
-### Plotting functions
+### Scatterplots
 
-For now all the plotting is done through `bplt.Scatter` which expects three arrays x, y, z with the same length `N`
+Scatterplots can be created with `bplt.Scatter` which expects three arrays x, y, z with the same length `N`
 containing coordinates to plot (or equivalently a single `Nx3` array as the first argument). Color can also be set using
 the `color=` argument, which expects a`Nx3` or `Nx4` numpy array with RGB or RGBA color values. Passing in a single RGB
 or RGBA value sets the same color for all points.
@@ -70,12 +70,32 @@ bplt.Scatter(x, y, z, color=(0, 0, 1), name="blue")
 
 ![image info](./images/sinusoids_editor.png)
 
+### Surface plots
+
+Surface plots can be created in the same way, except using `MxNx3` arrays for x, y, z. Faces are then added between points neighbouring along the x and y axes. Colors and animation can be added in the same way as with scatterplots.
+
+```python
+import numpy as np
+import blender_plots as bplt
+n, l = 150, 100
+x, y = np.meshgrid(np.linspace(0, l, n), np.linspace(0, l, n))
+
+z = np.sin(2*np.pi * x / l)*np.sin(2*np.pi * y / l) * 20
+bplt.Surface(x, y, z, color=(1, 0, 0), name="red")
+
+z = np.sin(4*np.pi * x / l)*np.sin(4*np.pi * y / l) * 20 + 40
+bplt.Surface(x, y, z, color=(0, 0, 1), name="blue")
+```
+
+![image info](./images/sinusoids_surface.png)
+
 ### Animations
 
 To get an animated plot, just pass in x, y, z as `TxN` arrays instead (or `TxNx3` as the first argument):
 
 ```python
-# plot animated function
+import numpy as np
+import blender_plots as bplt
 n, l, T = 150, 100, 100
 t, x, y = np.meshgrid(np.arange(0, T), np.linspace(0, l, n), np.linspace(0, l, n), indexing='ij')
 t, x, y = t.reshape((T, -1)), x.reshape((T, -1)), y.reshape((T, -1))
@@ -88,6 +108,8 @@ bplt.Scatter(x, y, z, color=(0, 0, 1), name="blue")
 ```
 
 https://user-images.githubusercontent.com/12471058/175827154-f2788971-78d3-4778-937a-5d0ff30af7fd.mp4
+
+For animated surface plots the input shape should be `TxMxNx3`.
 
 ### Visualizing point clouds
 
@@ -129,6 +151,9 @@ passing `radius_top=...`
 and `radius_bottom=...` to `bplt.Scatter`:
 
 ```python
+import numpy as np
+import blender_plots as bplt
+n = int(1e2)
 scatter = bplt.Scatter(
     np.random.rand(n, 3)*50,
     color=np.random.rand(n, 3),
@@ -145,6 +170,9 @@ Similarly, the [cube node](https://docs.blender.org/manual/en/latest/modeling/ge
 has a vector-valued `Size` parameter:
 
 ```python
+import numpy as np
+import blender_plots as bplt
+n = int(1e2)
 bplt.Scatter(
     np.random.rand(n, 3)*50,
     color=np.random.rand(n, 3),
@@ -167,6 +195,8 @@ The supported formats are XYZ euler angles in radians (by passing an Nx3 or NxTx
 random rotation to each marker.
 
 ```python
+import numpy as np
+import blender_plots as bplt
 def get_rotaitons_facing_point(origin, points):
     n_points = len(points)
     d = (origin - points) / np.linalg.norm(origin - points, axis=-1)[:, None]
@@ -195,7 +225,10 @@ s = bplt.Scatter(
 You can also use an existing mesh by passing it to `marker_type=...`:
 
 ```python
+import numpy as np
 from colorsys import hls_to_rgb
+import bpy
+import blender_plots as bplt
 bpy.ops.mesh.primitive_monkey_add()
 monkey = bpy.context.active_object
 monkey.hide_viewport = True
@@ -223,6 +256,9 @@ You can get perfect spheres as markers by passing in `marker_type="spheres"`. Th
 the rendered view and with the rendering engine set to cycles
 
 ```python
+import numpy as np
+import blender_plots as bplt
+n = int(1e2)
 bplt.Scatter(
     np.random.rand(n, 3)*50,
     color=np.random.rand(n, 3),
