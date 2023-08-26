@@ -11,6 +11,7 @@ from blender_plots import plots_base
 
 @dataclass
 class Constants:
+    MARKER_SCALE = "marker_Scale"
     MARKER_ROTATION = "marker_rotation"
     MARKER_TYPES = {
         "cones": "GeometryNodeMeshCone",
@@ -32,19 +33,23 @@ class Scatter(plots_base.Plot):
             If y and z are not provided: expects x to be a Nx3 array with xyz positions for points to scatter, or TxNx3
                 for sequence of scatter plots to animate
             if y and z are provided: expects x,y,z to be length N or TxN arrays for xyz coordinates respectively.
-        color: Nx3 or Nx4 array or with RGB or RGBA values for each point, or a single RGB/RGBA-value
-            (e.g. (1, 0, 0) for red) to apply to every point.
+        color: (Tx)Nx3 or (Tx)Nx4 array or with RGB or RGBA values for each point and (optionally) time,
+            or a single RGB/RGBA-value (e.g. (1, 0, 0) for red) to apply to every point.
         name: name to use for blender object. Will delete any previous plot with the same name.
         marker_type: select appearance of points. Either MARKER_TYPE, "spheres", bpy_types.Mesh or bpy_types.Object
-        marker_scale: xyz scale for markers
-        marker_rotation: Nx3 (euler angles in radians) or Nx3x3 (rotation matrices) array specifying the rotation for
-            each marker. Or "random" for applying a random rotation to each marker.
+        color: (Tx)Nx3 or (Tx)N array or with xyz scale or scale values for each point and (optionally) time,
+            or a single scale value (e.g. 2 or (1, 1, 2)) to apply to every point.
+        marker_rotation: (Tx)Nx3 (euler angles in radians) or (Tx)Nx3x3 (rotation matrices) array specifying the rotation for
+            each point and (optionally) time.
         randomize_rotation: If set to True randomize the rotation of each marker. Overrides marker_rotation.
         marker_kwargs: additional arguments for configuring markers
     """
 
-    def __init__(self, x, y=None, z=None, color=None, name="scatter", marker_type="cubes", marker_scale=None,
-                 marker_rotation=None, randomize_rotation=False, **marker_kwargs):
+    def __init__(
+            self, x, y=None, z=None, color=None, name="scatter",
+            marker_type="cubes", marker_scale=None, marker_rotation=None,
+            randomize_rotation=False, **marker_kwargs
+        ):
         super(Scatter, self).__init__(x, y, z, color=color, name=name, n_dims=1)
 
         if marker_type == "spheres":
@@ -54,15 +59,32 @@ class Scatter(plots_base.Plot):
                 self.modifier,
                 randomize_rotation=randomize_rotation,
                 marker_type=marker_type,
-                marker_scale=marker_scale,
+                set_scale=marker_scale is not None,
                 n_frames=self.n_frames,
                 **marker_kwargs
             )
         self.modifier["Input_2"] = self.color_material
         self.marker_rotation = marker_rotation
+        self.marker_scale = marker_scale
 
     def get_geometry(self):
         return self._points.reshape(-1, 3), [], []
+
+    @property
+    def marker_scale(self):
+        return self._marker_scale
+
+    @marker_scale.setter
+    def marker_scale(self, marker_scale):
+        self._marker_scale = np.array(marker_scale) if marker_scale is not None else marker_scale
+        self.update_marker_scale()
+
+    def update_marker_scale(self):
+        if self._marker_scale is not None:
+            marker_scale, marker_dims = self.tile_data(self._marker_scale, [[3], []], "marker scale")
+            if marker_dims == []:
+                marker_scale = np.array([marker_scale] * 3).T
+            bu.set_vertex_attribute(self.mesh, Constants.MARKER_SCALE, marker_scale, "FLOAT_VECTOR")
 
     @property
     def marker_rotation(self):
@@ -81,14 +103,14 @@ class Scatter(plots_base.Plot):
             bu.set_vertex_attribute(self.mesh, Constants.MARKER_ROTATION, marker_rotation, "FLOAT_VECTOR")
 
 
-def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, marker_scale=None,
+def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, set_scale=False,
                      n_frames=0, **marker_kwargs):
     """Create a geometry node modifier that instances a mesh on each vertex.
     Args:
         base_modifier: modifier to add markers to.
         marker_type: name of marker type (see MARKER_TYPES), or a blender mesh/object to use as marker
         randomize_rotation: if True each mesh instance will be given a random rotation (uniform euler angles)
-        marker_scale: xyz scale for markers
+        set_scale: if True use the MARKER_SCALE attribute to set the marker scale
         n_frames: number of frames to animate, no animation if set to 0.
         marker_kwargs: additional arguments for configuring markers
     """
@@ -129,9 +151,11 @@ def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, marke
         material=node_linker.group_input.outputs["Point Color"]
     ).outputs["Geometry"]
 
-    if marker_scale is not None and np.array(marker_scale).shape == ():
-        marker_scale = [marker_scale] * 3
-
+    marker_scale = node_linker.new_node(
+        "GeometryNodeInputNamedAttribute",
+        data_type="FLOAT_VECTOR",
+        name=Constants.MARKER_SCALE,
+    )
     marker_rotation = node_linker.new_node(
         "GeometryNodeInputNamedAttribute",
         data_type="FLOAT_VECTOR",
@@ -143,7 +167,7 @@ def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, marke
         selection=None if n_frames is None else bu.get_frame_selection_node(base_modifier, n_frames).outputs["Value"],
         instance=colored_mesh,
         rotation=marker_rotation.outputs["Attribute"],
-        scale=marker_scale,
+        scale=marker_scale.outputs["Attribute"] if set_scale else [1, 1, 1],
     )
     if randomize_rotation:
         # these rotation are not uniform (some orientations will be more likely than others)
