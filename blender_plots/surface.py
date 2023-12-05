@@ -24,7 +24,7 @@ class Surface(plots_base.Plot):
     @property
     def n_points_x(self):
         return self.dims[0]
-    
+
     @property
     def n_points_y(self):
         return self.dims[1]
@@ -62,10 +62,7 @@ def get_faces(n_points_x, n_points_y, n_frames):
     ])
 
 def animate(base_modifier, n_frames):
-    if base_modifier.node_group is None:
-        base_modifier.node_group = bu.geometry_node_group_empty_new()
-    node_linker = bu.NodeLinker(base_modifier.node_group)
-
+    node_linker = bu.get_node_linker(base_modifier)
     visible_geometry = node_linker.new_node(
         "GeometryNodeSeparateGeometry",
         geometry=node_linker.group_input.outputs["Geometry"],

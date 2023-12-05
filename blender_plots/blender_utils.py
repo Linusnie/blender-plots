@@ -15,6 +15,8 @@ class NodeLinker:
 
     def __init__(self, node_group):
         self.node_group = node_group
+        # blender creates socket names based on order they are created, so we keep a mapping from user-provided socket name to internal name
+        self.input_sockets = {}
 
     def new_node(self, node_type, **kwargs):
         """Adds a new node to the node group
@@ -57,6 +59,14 @@ class NodeLinker:
 
     def new_input(self, input_type, input_name):
         self.node_group.inputs.new(input_type, input_name)
+
+    def new_input_socket(self, name, socket_type):
+        if bpy.app.version[0] >= 4: # node group input/output interface changed in 4.0
+            self.node_group.interface.new_socket(name, socket_type=socket_type)
+        else:
+            self.node_group.inputs.new(socket_type, name)
+        socket_index = len(self.input_sockets) + 2 # starts at 2
+        self.input_sockets[name] = socket_input_key(socket_index)
 
     @property
     def group_input(self):
@@ -104,15 +114,25 @@ def python_arg_to_blender_key(arg):
     """convert python argument to geometry node name, e.g. radius->Radius, instance_index->Instance Index"""
     return ' '.join([s.capitalize() for s in arg.split('_')])
 
+def socket_input_key(i):
+    return ('Socket_' if bpy.app.version[0] >= 4 else 'Input_') + f'{i}'
 
 # From https://developer.blender.org/diffusion/B/browse/master/release/scripts/startup/bl_operators/geometry_nodes.py$7
-def geometry_node_group_empty_new():
-    """Create new node group, useful in blender 3.2 since node group is not added to node modifiers by default."""
+def get_node_linker(modifier):
+    if modifier.node_group is not None:
+        return NodeLinker(modifier.node_group)
     group = bpy.data.node_groups.new("Geometry Nodes", 'GeometryNodeTree')
-    group.inputs.new('NodeSocketGeometry', "Geometry")
-    group.outputs.new('NodeSocketGeometry', "Geometry")
-    input_node = group.nodes.new('NodeGroupInput')
-    output_node = group.nodes.new('NodeGroupOutput')
+    if bpy.app.version[0] >= 4: # node group input/output interface changed in 4.0
+        input_node = group.nodes.new('NodeGroupInput')
+        output_node = group.nodes.new('NodeGroupOutput')
+        group.interface.new_socket('Geometry', in_out='INPUT', socket_type='NodeSocketGeometry')
+        group.interface.new_socket('Geometry', in_out='OUTPUT', socket_type='NodeSocketGeometry')
+    else:
+        """Create new node group, useful in blender 3.2 since node group is not added to node modifiers by default."""
+        group.inputs.new('NodeSocketGeometry', "Geometry")
+        group.outputs.new('NodeSocketGeometry', "Geometry")
+        input_node = group.nodes.new('NodeGroupInput')
+        output_node = group.nodes.new('NodeGroupOutput')
     output_node.is_active_output = True
 
     input_node.select = False
@@ -122,8 +142,8 @@ def geometry_node_group_empty_new():
     output_node.location.x = 200
 
     group.links.new(output_node.inputs[0], input_node.outputs[0])
-
-    return group
+    modifier.node_group = group
+    return NodeLinker(modifier.node_group)
 
 def set_vertex_colors(mesh, color):
     """Add a marker_color attribute to each vertex in `mesh` with values from (n_vertices)x(3 or 4) array `color`"""

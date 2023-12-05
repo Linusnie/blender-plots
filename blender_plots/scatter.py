@@ -53,9 +53,9 @@ class Scatter(plots_base.Plot):
         super(Scatter, self).__init__(x, y, z, color=color, name=name, n_dims=1)
 
         if marker_type == "spheres":
-            add_sphere_markers(self.modifier, n_frames=self.n_frames, **marker_kwargs)
+            node_linker = add_sphere_markers(self.modifier, n_frames=self.n_frames, **marker_kwargs)
         elif marker_type is not None:
-            add_mesh_markers(
+            node_linker = add_mesh_markers(
                 self.modifier,
                 randomize_rotation=randomize_rotation,
                 marker_type=marker_type,
@@ -63,9 +63,14 @@ class Scatter(plots_base.Plot):
                 n_frames=self.n_frames,
                 **marker_kwargs
             )
-        self.modifier["Input_2"] = self.color_material
+        else:
+            node_linker = bu.get_node_linker(self.modifier)
+            node_linker.new_input_socket('Point Color', 'NodeSocketMaterial')
+
+        self.modifier[node_linker.input_sockets['Point Color']] = self.color_material
         self.marker_rotation = marker_rotation
         self.marker_scale = marker_scale
+        self.base_object.data.update()
 
     def get_geometry(self):
         return self._points.reshape(-1, 3), [], []
@@ -114,14 +119,9 @@ def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, set_s
         n_frames: number of frames to animate, no animation if set to 0.
         marker_kwargs: additional arguments for configuring markers
     """
-    if base_modifier.node_group is None:
-        base_modifier.node_group = bu.geometry_node_group_empty_new()
-    node_linker = bu.NodeLinker(base_modifier.node_group)
-
-    # create all inputs, some might be unused depending on input parameters.
-    # order is important since keys are generically created in numerical order.
-    base_modifier.node_group.inputs.new("NodeSocketMaterial", "Point Color")  # Input_2
-    base_modifier.node_group.inputs.new("NodeSocketObject", "Point Instance")  # Input_3
+    node_linker = bu.get_node_linker(base_modifier)
+    node_linker.new_input_socket('Point Color', 'NodeSocketMaterial')
+    node_linker.new_input_socket('Point Instance', 'NodeSocketObject')
 
     points_socket = node_linker.new_node(
         "GeometryNodeMeshToPoints",
@@ -132,7 +132,7 @@ def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, set_s
         mesh_socket = node_linker.new_node(node_type=Constants.MARKER_TYPES[marker_type], **marker_kwargs).outputs["Mesh"]
     elif isinstance(marker_type, bpy.types.Mesh) or isinstance(marker_type, bpy.types.Object):
         # use the supplied mesh by adding it as an input socket to the base_modifier
-        base_modifier["Input_3"] = marker_type
+        base_modifier[node_linker.input_sockets['Point Instance']] = marker_type
         base_modifier.show_viewport = False
         base_modifier.show_viewport = True
         mesh_socket = node_linker.new_node(
@@ -172,8 +172,9 @@ def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, set_s
     if randomize_rotation:
         # these rotation are not uniform (some orientations will be more likely than others)
         # but it usually looks decent
-        random_euler = node_linker.new_node("FunctionNodeRandomValue", max=(180, 180, 180))
+        random_euler = node_linker.new_node("FunctionNodeRandomValue")
         random_euler.data_type = "FLOAT_VECTOR"
+        random_euler.inputs['Max'].default_value = (180, 180, 180)
         node_linker.link(random_euler.outputs["Value"], instance_on_points_node.inputs["Rotation"])
 
     realize_instances_node = node_linker.new_node(
@@ -181,6 +182,7 @@ def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, set_s
         geometry=instance_on_points_node.outputs["Instances"]
     )
     node_linker.new_node("NodeGroupOutput", geometry=realize_instances_node.outputs["Geometry"])
+    return node_linker
 
 
 def add_sphere_markers(base_modifier, n_frames, **marker_kwargs):
@@ -191,11 +193,8 @@ def add_sphere_markers(base_modifier, n_frames, **marker_kwargs):
         n_frames: number of frames to animate, no animation if set to 0.
         marker_kwargs: arguments to passed to node_linker.new_node when generating point node. e.g. radius=0.1
     """
-    if base_modifier.node_group is None:
-        base_modifier.node_group = bu.geometry_node_group_empty_new()
-    node_linker = bu.NodeLinker(base_modifier.node_group)
-
-    base_modifier.node_group.inputs.new("NodeSocketMaterial", "Point Color")  # Input_2
+    node_linker = bu.get_node_linker(base_modifier)
+    node_linker.new_input_socket('Point Color', 'NodeSocketMaterial')
 
     points = node_linker.new_node(
         "GeometryNodeMeshToPoints",
@@ -209,3 +208,4 @@ def add_sphere_markers(base_modifier, n_frames, **marker_kwargs):
         material=node_linker.group_input.outputs["Point Color"]
     )
     node_linker.new_node("NodeGroupOutput", geometry=node.outputs["Geometry"])
+    return node_linker
