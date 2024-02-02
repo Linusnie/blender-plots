@@ -41,7 +41,7 @@ Since the built-in code editor isn't great I recommend using jupyter notebooks w
 In a virtual environment, run:
 
 ```bash
-python -m pip install pip install blender_notebook ipykernel
+python -m pip install blender_notebook ipykernel
 blender_notebook install --blender-exec [path_to_blender]/blender --kernel-name blender
 ```
 
