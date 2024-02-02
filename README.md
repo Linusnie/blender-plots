@@ -2,16 +2,13 @@
 
 Ever wonder if you could use Blender for plotting, like you would with Matplotlib? With blender-plots you can!
 
-Blender can indeed be a great tool for visualization, but if you're starting out with numpy arrays getting even a simple plot with colors requires a lot of digging through the python API and wrangling node trees.
-
-The goal of this library/addon is to automate all of that and make the visualization process as painless as possible for someone familiar with matplotlib-like libraries.
-
-At the moment this readme acts as the documentation. The easiest way to get started is to have a look at the examples below and in `examples.ipynb`.
-
-Feel free to open an issue if anything is unclear or doesn't work as intended, feedback and suggestions are appreciated!
 | | |
 | --- | --- |
 | ![out_15fps_v3_loop](https://user-images.githubusercontent.com/12471058/175826002-dc6ba8d5-a1c1-4b27-ae64-fc8085e46958.gif) | ![image info](./images/arrows.png) |
+
+Blender can indeed be a great tool for visualization, but if you're starting out with numpy arrays getting even a simple plot with colors requires a lot of digging through the python API and wrangling node trees. The goal of this library/addon is to automate all of that and make the visualization process as painless as possible for someone familiar with matplotlib-like libraries.
+
+At the moment this readme acts as the documentation. The easiest way to get started is to have a look at the examples below and in `examples.ipynb`. Feel free to open an issue if anything is unclear or doesn't work as intended, feedback and suggestions are appreciated!
 
 ## Installation
 
