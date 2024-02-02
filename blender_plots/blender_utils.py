@@ -8,6 +8,7 @@ import bpy
 class Constants:
     MARKER_COLOR = "marker_color"
     FRAME_INDEX = "frame_index"
+    ARROWS = "arrows"
 
 
 class NodeLinker:
@@ -47,7 +48,7 @@ class NodeLinker:
                 if isinstance(value, bpy.types.NodeSocket):
                     self.link(value, node.inputs[blender_key])
                 elif (isinstance(blender_key, int) or blender_key in node.inputs) and hasattr(node.inputs[blender_key], "default_value"):
-                    node.inputs[blender_key].default_value = value
+                    node.inputs[blender_key].default_value = value # TODO: make sure this is done first, as it resets everything else
                 elif hasattr(node, key):
                     setattr(node, key, value)
                 else:
@@ -185,8 +186,9 @@ def get_frame_selection_node(modifier, n_frames):
         input_2=0.5
     )
 
+    # link compare node to frame index
     action = bpy.data.actions.new("AnimationAction")
-    fcurve = action.fcurves.new(data_path='nodes["Math"].inputs[0].default_value', index=0)
+    fcurve = action.fcurves.new(data_path=f'nodes["{frame_selection_node.name}"].inputs[0].default_value', index=0)
     fcurve.keyframe_points.add(2)
     fcurve.keyframe_points.foreach_set("co", [0, 0, n_frames, n_frames])
     bpy.context.scene.frame_end = n_frames - 1

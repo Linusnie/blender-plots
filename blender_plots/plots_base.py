@@ -113,7 +113,7 @@ def get_points_array(x, y, z, n_dims=1):
                 points = x
             case _:
                 dims_str = 'x'.join(f'N{i + 1}' for i in range(n_dims))
-                raise ValueError(f"Invalid shape for points: {x.shape=}, expected {dims_str}x3 or Tx{dims_str}x3")    
+                raise ValueError(f"Invalid shape for points: {x.shape=}, expected {dims_str}x3 or Tx{dims_str}x3")
     elif (y is not None) and (z is not None):
         # parse x,y,z as N,N,N or TxN,TxN,TxN
         x, y, z = np.array(x), np.array(y), np.array(z)

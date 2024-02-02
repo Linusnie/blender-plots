@@ -37,8 +37,6 @@ class Scatter(plots_base.Plot):
             or a single RGB/RGBA-value (e.g. (1, 0, 0) for red) to apply to every point.
         name: name to use for blender object. Will delete any previous plot with the same name.
         marker_type: select appearance of points. Either MARKER_TYPE, "spheres", bpy_types.Mesh or bpy_types.Object
-        color: (Tx)Nx3 or (Tx)N array or with xyz scale or scale values for each point and (optionally) time,
-            or a single scale value (e.g. 2 or (1, 1, 2)) to apply to every point.
         marker_rotation: (Tx)Nx3 (euler angles in radians) or (Tx)Nx3x3 (rotation matrices) array specifying the rotation for
             each point and (optionally) time.
         randomize_rotation: If set to True randomize the rotation of each marker. Overrides marker_rotation.

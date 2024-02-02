@@ -10,7 +10,9 @@ colors specified by numpy arrays still requires a lot of digging through the API
 The goal with this addon/library is to make the visualization process smoother by providing a matplotlib-like API for
 making plots. It currently supports scatterplots through `bplt.Scatter`.
 
-![out_15fps_v3_loop](https://user-images.githubusercontent.com/12471058/175826002-dc6ba8d5-a1c1-4b27-ae64-fc8085e46958.gif)
+
+![out_15fps_v3_loop](https://user-images.githubusercontent.com/12471058/175826002-dc6ba8d5-a1c1-4b27-ae64-fc8085e46958.gif) ![image info](./images/arrows.png)
+
 
 ## Installation
 
@@ -88,6 +90,52 @@ bplt.Surface(x, y, z, color=(0, 0, 1), name="blue")
 ```
 
 ![image info](./images/sinusoids_surface.png)
+
+### Arrow plots
+
+Create an arrow plot by providing an `Nx3` array of starting points and an `Nx3` array of vectors representing the arrows.
+
+```python
+import numpy as np
+import blender_plots as bplt
+import bpy
+
+n, a, I = 25, 50, 100
+
+bpy.ops.mesh.primitive_torus_add(major_radius=a, minor_radius=a / 100)
+phis = np.linspace(0, 2 * np.pi, n)
+thetas = np.linspace(0, 2 * np.pi, 1000)
+
+def integrate_B(point):
+    return I * a * (np.array([
+        point[2] * np.cos(thetas),
+        -point[2] * np.sin(thetas),
+        -point[0] * np.cos(thetas) - point[1] * np.sin(thetas) + a
+    ]) / np.linalg.norm(np.array([
+        point[0] - a * np.cos(thetas),
+        point[1] - a * np.sin(thetas),
+        point[2] + np.zeros_like(thetas),
+    ]), axis=0) ** 3).sum(axis=1) * (thetas[1] - thetas[0])
+
+phis = np.linspace(0, 2 * np.pi, n)
+thetas = np.linspace(0, 2 * np.pi, 100)
+
+zeros = np.zeros(n)
+for r in [a / 2, 3 * a / 4, a]:
+    x, y, z = (a +  r * np.cos(phis)), zeros, r * np.sin(phis)
+    points = np.array([x, y, z]).T
+    B = np.apply_along_axis(integrate_B, 1, points)
+    bplt.Arrows(points, B, color=(1, 0, 0), name=f"B_{r}", radius=.3, radius_ratio=3)
+
+phis = np.linspace(0, 2 * np.pi, 13)
+x, y, z = 1.01 * a * np.cos(phis), 1.01 * a * np.sin(phis), np.zeros(phis.shape)
+points = np.array([x, y, z]).T
+current_directions = np.array([-y, x, z]).T
+bplt.Arrows(points, current_directions * .5, color=(0, 0, 1), name=f"I_directions", radius=.3, radius_ratio=3)
+bplt.Scatter(points, color=(0, 0, 1), name=f"I_points", marker_type='ico_spheres', radius=1, subdivisions=3)
+```
+
+![image info](./images/arrows_editor.png)
 
 ### Animations
 
