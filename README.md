@@ -52,6 +52,8 @@ containing coordinates to plot (or equivalently a single `Nx3` array as the firs
 the `color=` argument, which expects a`Nx3` or `Nx4` numpy array with RGB or RGBA color values. Passing in a single RGB
 or RGBA value sets the same color for all points.
 
+If the output is all gray it's probably because the rendering mode is set to `Solid`. In that case make sure to change it to `Material Preview` or `Rendered` by clicking on one of the sphere icons in the top right corner of the 3D view.
+
 ```python
 import numpy as np
 import blender_plots as bplt
