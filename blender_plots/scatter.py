@@ -45,7 +45,7 @@ class Scatter(plots_base.Plot):
 
     def __init__(
             self, x, y=None, z=None, color=None, name="scatter",
-            marker_type="cubes", marker_scale=None, marker_rotation=None,
+            marker_type="ico_spheres", marker_scale=None, marker_rotation=None,
             randomize_rotation=False, **marker_kwargs
         ):
         super(Scatter, self).__init__(x, y, z, color=color, name=name, n_dims=1)
