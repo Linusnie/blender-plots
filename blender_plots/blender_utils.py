@@ -80,16 +80,29 @@ def delete(obj, with_children=False):
     if with_children:
         for child in obj.children:
             delete(child, with_children=True)
-    bpy.data.objects.remove(obj, do_unlink=True)
+    if isinstance(obj, bpy.types.Object):
+        bpy.data.objects.remove(obj, do_unlink=True)
+    elif isinstance(obj, bpy.types.Collection):
+        bpy.data.collections.remove(obj, do_unlink=True)
+    else:
+        raise ValueError(f'Failed to delete object {obj}: unrecognized type')
 
+def new_collection(name):
+    if name in bpy.data.collections:
+        delete(bpy.data.collections[name], with_children=True)
+    collection = bpy.data.collections.new(name)
+    bpy.context.collection.children.link(collection)
+    return collection
 
-def new_empty(name, object_data=None, select=True):
+def new_empty(name, object_data=None, select=True, collection=None):
     """Create new empty blender object with specified name and data, deletes any previous object with the same name."""
     if name in bpy.data.objects:
         delete(bpy.data.objects[name], with_children=True)
 
     new_object = bpy.data.objects.new(name, object_data)
-    bpy.context.collection.objects.link(new_object)
+    if collection is None:
+        collection = bpy.context.collection
+    collection.objects.link(new_object)
 
     if select:
         bpy.context.view_layer.objects.active = new_object
@@ -170,6 +183,14 @@ def get_vertex_color_material():
     material.node_tree.links.new(color_node.outputs["Color"],
                                  material.node_tree.nodes["Principled BSDF"].inputs["Base Color"])
     return material
+
+def add_mesh_color(mesh, color):
+    """Add uniform color to mesh."""
+    if len(color) == 3:
+        color = (*color, 1)
+    material = bpy.data.materials.new("color")
+    material.diffuse_color = color
+    mesh.materials.append(material)
 
 def get_frame_selection_node(modifier, n_frames):
     """Add node that filters points based on the Frame Index property."""

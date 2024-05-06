@@ -48,7 +48,7 @@ class Scatter(plots_base.Plot):
             marker_type="ico_spheres", marker_scale=None, marker_rotation=None,
             randomize_rotation=False, **marker_kwargs
         ):
-        super(Scatter, self).__init__(x, y, z, color=color, name=name, n_dims=1)
+        super().__init__(x, y, z, color=color, name=name, n_dims=1)
 
         if marker_type == "spheres":
             node_linker = add_sphere_markers(self.modifier, n_frames=self.n_frames, **marker_kwargs)
@@ -59,6 +59,7 @@ class Scatter(plots_base.Plot):
                 marker_type=marker_type,
                 set_scale=marker_scale is not None,
                 n_frames=self.n_frames,
+                with_color=color is not None,
                 **marker_kwargs
             )
         else:
@@ -107,7 +108,7 @@ class Scatter(plots_base.Plot):
 
 
 def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, set_scale=False,
-                     n_frames=0, **marker_kwargs):
+                     n_frames=0, with_color=False, **marker_kwargs):
     """Create a geometry node modifier that instances a mesh on each vertex.
     Args:
         base_modifier: modifier to add markers to.
@@ -119,7 +120,6 @@ def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, set_s
     """
     node_linker = bu.get_node_linker(base_modifier)
     node_linker.new_input_socket('Point Color', 'NodeSocketMaterial')
-    node_linker.new_input_socket('Point Instance', 'NodeSocketObject')
 
     points_socket = node_linker.new_node(
         "GeometryNodeMeshToPoints",
@@ -127,27 +127,29 @@ def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, set_s
     ).outputs["Points"]
 
     if marker_type in Constants.MARKER_TYPES:
+        # use one of the default marker types
         mesh_socket = node_linker.new_node(node_type=Constants.MARKER_TYPES[marker_type], **marker_kwargs).outputs["Mesh"]
-    elif isinstance(marker_type, bpy.types.Mesh) or isinstance(marker_type, bpy.types.Object):
-        # use the supplied mesh by adding it as an input socket to the base_modifier
+    elif isinstance(marker_type, (bpy.types.Object, bpy.types.Collection)):
+        # use custom object or collection as marker
+        subtype = marker_type.__class__.__name__
+        node_linker.new_input_socket('Point Instance', f'NodeSocket{subtype}')
         base_modifier[node_linker.input_sockets['Point Instance']] = marker_type
-        base_modifier.show_viewport = False
-        base_modifier.show_viewport = True
         mesh_socket = node_linker.new_node(
-            "GeometryNodeObjectInfo",
-            Object=node_linker.group_input.outputs["Point Instance"]
-        ).outputs["Geometry"]
+            f"GeometryNode{subtype}Info",
+            **{subtype: node_linker.group_input.outputs["Point Instance"]}
+        ).outputs[{'Object': 'Geometry', 'Collection': 'Instances'}[subtype]]
         marker_type.hide_viewport = True
         marker_type.hide_render = True
     else:
-        raise TypeError(f"Invalid marker type: {marker_type}, expected bpy.types.Mesh, bpy.Types.Object, "
+        raise TypeError(f"Invalid marker type: {marker_type}, expected Object or Collection, "
                         f"or one of: {', '.join(Constants.MARKER_TYPES)}")
 
-    colored_mesh = node_linker.new_node(
-        "GeometryNodeSetMaterial",
-        geometry=mesh_socket,
-        material=node_linker.group_input.outputs["Point Color"]
-    ).outputs["Geometry"]
+    if with_color:
+        mesh_socket = node_linker.new_node(
+            "GeometryNodeSetMaterial",
+            geometry=mesh_socket,
+            material=node_linker.group_input.outputs["Point Color"]
+        ).outputs["Geometry"]
 
     marker_scale = node_linker.new_node(
         "GeometryNodeInputNamedAttribute",
@@ -163,7 +165,7 @@ def add_mesh_markers(base_modifier, marker_type, randomize_rotation=False, set_s
         "GeometryNodeInstanceOnPoints",
         points=points_socket,
         selection=None if n_frames is None else bu.get_frame_selection_node(base_modifier, n_frames).outputs["Value"],
-        instance=colored_mesh,
+        instance=mesh_socket,
         rotation=marker_rotation.outputs["Attribute"],
         scale=marker_scale.outputs["Attribute"] if set_scale else [1, 1, 1],
     )

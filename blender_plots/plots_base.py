@@ -10,7 +10,6 @@ class Plot:
         self.mesh = bpy.data.meshes.new(self.name)
         self.base_object = bu.new_empty(self.name, self.mesh)
         self.color_material = None
-        self.color_material = None
         self._points = None
         self.modifier = self.base_object.modifiers.new(type="NODES", name=name)
 
