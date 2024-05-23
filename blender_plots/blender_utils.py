@@ -94,7 +94,7 @@ def new_collection(name):
     bpy.context.collection.children.link(collection)
     return collection
 
-def new_empty(name, object_data=None, select=True, collection=None):
+def new_empty(name, object_data=None, select=True, collection=None, location=None, rotation_euler=None):
     """Create new empty blender object with specified name and data, deletes any previous object with the same name."""
     if name in bpy.data.objects:
         delete(bpy.data.objects[name], with_children=True)
@@ -106,7 +106,10 @@ def new_empty(name, object_data=None, select=True, collection=None):
 
     if select:
         bpy.context.view_layer.objects.active = new_object
-
+    if location is not None:
+        new_object.location = location
+    if rotation_euler is not None:
+        new_object.rotation_euler = rotation_euler
     return new_object
 
 
@@ -218,3 +221,22 @@ def get_frame_selection_node(modifier, n_frames):
     modifier.node_group.animation_data.action = action
 
     return frame_selection_node
+
+def new_mesh(vertices, faces, name='mesh', color=None, location=None, rotation_euler=None):
+    """Create mesh with uniform color."""
+    bmesh = bpy.data.meshes.new(name=name)
+    bmesh.from_pydata(vertices, [], faces)
+    mesh_object = new_empty(
+        name,
+        bmesh,
+        location=location,
+        rotation_euler=rotation_euler,
+    )
+
+    if color is not None:
+        material = bpy.data.materials.new(name)
+        material.use_nodes = True
+        bsdf = material.node_tree.nodes['Principled BSDF']
+        bsdf.inputs['Base Color'].default_value = color
+        mesh_object.data.materials.append(material)
+    return mesh_object
