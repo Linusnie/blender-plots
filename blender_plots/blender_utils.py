@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-import numpy as np
 
 import bpy
+import numpy as np
 
 
 @dataclass
@@ -180,11 +180,15 @@ def get_vertex_color_material():
     """Create a material that obtains its color from the marker_color attribute"""
     material = bpy.data.materials.new("color")
     material.use_nodes = True
+    bsdf = material.node_tree.nodes.get("Principled BSDF")
+
     color_node = material.node_tree.nodes.new("ShaderNodeAttribute")
     color_node.attribute_name = Constants.MARKER_COLOR
 
-    material.node_tree.links.new(color_node.outputs["Color"],
-                                 material.node_tree.nodes["Principled BSDF"].inputs["Base Color"])
+    material.node_tree.links.new(color_node.outputs["Color"], bsdf.inputs["Base Color"])
+    material.node_tree.links.new(color_node.outputs["Alpha"], bsdf.inputs["Alpha"])
+
+    material.blend_method = "BLEND"
     return material
 
 def add_mesh_color(mesh, color):
