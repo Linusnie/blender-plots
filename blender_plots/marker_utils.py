@@ -1,40 +1,33 @@
-import numpy as np
 import bpy
+import numpy as np
 
 from blender_plots import blender_utils as bu
 
-def get_frustum(
-        intrinsics,
-        height,
-        width,
-        image_depth,
-        name="",
-        with_fill=True,
-        thickness=0.03,
-        color=None,
-        color_fill=None,
-    ):
-    frustum_points = np.array([
-        [0, height, 1],
-        [width, height, 1],
-        [0, 0, 1],
-        [width, 0, 1]
-    ]) * image_depth
 
-    frustum_points = np.einsum('ij,...j->...i',
+def get_frustum(
+    intrinsics,
+    height,
+    width,
+    image_depth,
+    name="",
+    with_fill=True,
+    thickness=0.03,
+    color=None,
+    color_fill=None,
+):
+    frustum_points = (
+        np.array([[0, height, 1], [width, height, 1], [0, 0, 1], [width, 0, 1]])
+        * image_depth
+    )
+
+    frustum_points = np.einsum(
+        "ij,...j->...i",
         np.linalg.inv(intrinsics),
         frustum_points,
     )
-    frustum_edges = np.array([
-        [0, 1],
-        [1, 3],
-        [3, 2],
-        [2, 0],
-        [0, 4],
-        [1, 4],
-        [2, 4],
-        [3, 4]
-    ])
+    frustum_edges = np.array(
+        [[0, 1], [1, 3], [3, 2], [2, 0], [0, 4], [1, 4], [2, 4], [3, 4]]
+    )
 
     frustum_faces = [
         [0, 1, 4],
@@ -45,10 +38,19 @@ def get_frustum(
 
     collection = bu.new_collection(name) if with_fill else None
     mesh = bpy.data.meshes.new("frustum")
-    mesh.from_pydata(np.vstack([frustum_points, np.zeros(3)]), frustum_edges, frustum_faces)
+    mesh.from_pydata(
+        np.vstack([frustum_points, np.zeros(3)]), frustum_edges, frustum_faces
+    )
 
     frustum = bu.new_empty(f"{name}_frustum", mesh, collection=collection)
-    modifier = bu.add_modifier(frustum, "WIREFRAME", use_crease=True, crease_weight=0.6, thickness=thickness, use_boundary=True)
+    modifier = bu.add_modifier(
+        frustum,
+        "WIREFRAME",
+        use_crease=True,
+        crease_weight=0.6,
+        thickness=thickness,
+        use_boundary=True,
+    )
     bpy.ops.object.modifier_apply(modifier=modifier.name)
 
     if color is not None:
@@ -59,7 +61,7 @@ def get_frustum(
         mesh_fill.from_pydata(
             np.vstack([frustum_points, np.zeros(3)]),
             frustum_edges,
-            frustum_faces + [[0, 1, 3, 2]]
+            frustum_faces + [[0, 1, 3, 2]],
         )
         bu.new_empty(f"{name}_fill", mesh_fill, collection=collection)
         if color_fill is not None:
@@ -69,6 +71,7 @@ def get_frustum(
         return collection
     else:
         return frustum
+
 
 def get_rotaitons_facing_point(origin, points):
     n_points = len(points)
