@@ -47,12 +47,18 @@ class NodeLinker:
                         blender_key = python_arg_to_blender_key(key)
                 if isinstance(value, bpy.types.NodeSocket):
                     self.link(value, node.inputs[blender_key])
-                elif (isinstance(blender_key, int) or blender_key in node.inputs) and hasattr(node.inputs[blender_key], "default_value"):
-                    node.inputs[blender_key].default_value = value # TODO: make sure this is done first, as it resets everything else
+                elif (
+                    isinstance(blender_key, int) or blender_key in node.inputs
+                ) and hasattr(node.inputs[blender_key], "default_value"):
+                    node.inputs[blender_key].default_value = (
+                        value  # TODO: make sure this is done first, as it resets everything else
+                    )
                 elif hasattr(node, key):
                     setattr(node, key, value)
                 else:
-                    raise ValueError(f"Node {node} has no attribute {key} or input {blender_key}.")
+                    raise ValueError(
+                        f"Node {node} has no attribute {key} or input {blender_key}."
+                    )
         return node
 
     def link(self, from_socket, to_socket):
@@ -62,11 +68,11 @@ class NodeLinker:
         self.node_group.inputs.new(input_type, input_name)
 
     def new_input_socket(self, name, socket_type):
-        if bpy.app.version[0] >= 4: # node group input/output interface changed in 4.0
+        if bpy.app.version[0] >= 4:  # node group input/output interface changed in 4.0
             self.node_group.interface.new_socket(name, socket_type=socket_type)
         else:
             self.node_group.inputs.new(socket_type, name)
-        socket_index = len(self.input_sockets) + 2 # starts at 2
+        socket_index = len(self.input_sockets) + 2  # starts at 2
         self.input_sockets[name] = socket_input_key(socket_index)
 
     @property
@@ -85,7 +91,8 @@ def delete(obj, with_children=False):
     elif isinstance(obj, bpy.types.Collection):
         bpy.data.collections.remove(obj, do_unlink=True)
     else:
-        raise ValueError(f'Failed to delete object {obj}: unrecognized type')
+        raise ValueError(f"Failed to delete object {obj}: unrecognized type")
+
 
 def new_collection(name):
     if name in bpy.data.collections:
@@ -94,7 +101,15 @@ def new_collection(name):
     bpy.context.collection.children.link(collection)
     return collection
 
-def new_empty(name, object_data=None, select=True, collection=None, location=None, rotation_euler=None):
+
+def new_empty(
+    name,
+    object_data=None,
+    select=True,
+    collection=None,
+    location=None,
+    rotation_euler=None,
+):
     """Create new empty blender object with specified name and data, deletes any previous object with the same name."""
     if name in bpy.data.objects:
         delete(bpy.data.objects[name], with_children=True)
@@ -120,36 +135,46 @@ def add_modifier(base_object, modifier_type, **kwargs):
     return modifier
 
 
-def set_vertex_attribute(mesh, attribute_name,  attribute_values, attribute_type="FLOAT"):
+def set_vertex_attribute(
+    mesh, attribute_name, attribute_values, attribute_type="FLOAT"
+):
     if attribute_name not in mesh.attributes:
         mesh.attributes.new(name=attribute_name, type=attribute_type, domain="POINT")
     data_type = "vector" if attribute_type == "FLOAT_VECTOR" else "value"
-    mesh.attributes[attribute_name].data.foreach_set(data_type, attribute_values.reshape(-1))
+    mesh.attributes[attribute_name].data.foreach_set(
+        data_type, attribute_values.reshape(-1)
+    )
 
 
 def python_arg_to_blender_key(arg):
     """convert python argument to geometry node name, e.g. radius->Radius, instance_index->Instance Index"""
-    return ' '.join([s.capitalize() for s in arg.split('_')])
+    return " ".join([s.capitalize() for s in arg.split("_")])
+
 
 def socket_input_key(i):
-    return ('Socket_' if bpy.app.version[0] >= 4 else 'Input_') + f'{i}'
+    return ("Socket_" if bpy.app.version[0] >= 4 else "Input_") + f"{i}"
+
 
 # From https://developer.blender.org/diffusion/B/browse/master/release/scripts/startup/bl_operators/geometry_nodes.py$7
 def get_node_linker(modifier):
     if modifier.node_group is not None:
         return NodeLinker(modifier.node_group)
-    group = bpy.data.node_groups.new("Geometry Nodes", 'GeometryNodeTree')
-    if bpy.app.version[0] >= 4: # node group input/output interface changed in 4.0
-        input_node = group.nodes.new('NodeGroupInput')
-        output_node = group.nodes.new('NodeGroupOutput')
-        group.interface.new_socket('Geometry', in_out='INPUT', socket_type='NodeSocketGeometry')
-        group.interface.new_socket('Geometry', in_out='OUTPUT', socket_type='NodeSocketGeometry')
+    group = bpy.data.node_groups.new("Geometry Nodes", "GeometryNodeTree")
+    if bpy.app.version[0] >= 4:  # node group input/output interface changed in 4.0
+        input_node = group.nodes.new("NodeGroupInput")
+        output_node = group.nodes.new("NodeGroupOutput")
+        group.interface.new_socket(
+            "Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
+        )
+        group.interface.new_socket(
+            "Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry"
+        )
     else:
         """Create new node group, useful in blender 3.2 since node group is not added to node modifiers by default."""
-        group.inputs.new('NodeSocketGeometry', "Geometry")
-        group.outputs.new('NodeSocketGeometry', "Geometry")
-        input_node = group.nodes.new('NodeGroupInput')
-        output_node = group.nodes.new('NodeGroupOutput')
+        group.inputs.new("NodeSocketGeometry", "Geometry")
+        group.outputs.new("NodeSocketGeometry", "Geometry")
+        input_node = group.nodes.new("NodeGroupInput")
+        output_node = group.nodes.new("NodeGroupOutput")
     output_node.is_active_output = True
 
     input_node.select = False
@@ -162,17 +187,24 @@ def get_node_linker(modifier):
     modifier.node_group = group
     return NodeLinker(modifier.node_group)
 
+
 def set_vertex_colors(mesh, color):
     """Add a marker_color attribute to each vertex in `mesh` with values from (n_vertices)x(3 or 4) array `color`"""
     if color.shape[1] == 3:
         color = np.hstack([color, np.ones((len(color), 1))])
     elif not color.shape[1] == 4:
-        raise ValueError(f"Invalid color array shape {color.shape}, expected Nx3 or Nx4")
+        raise ValueError(
+            f"Invalid color array shape {color.shape}, expected Nx3 or Nx4"
+        )
     if len(mesh.vertices) != len(color):
-        raise ValueError(f"Got {len(mesh.vertices)} vertices and {len(color)} color values")
+        raise ValueError(
+            f"Got {len(mesh.vertices)} vertices and {len(color)} color values"
+        )
 
     if Constants.MARKER_COLOR not in mesh.attributes:
-        mesh.attributes.new(name=Constants.MARKER_COLOR, type="FLOAT_COLOR", domain="POINT")
+        mesh.attributes.new(
+            name=Constants.MARKER_COLOR, type="FLOAT_COLOR", domain="POINT"
+        )
     mesh.attributes[Constants.MARKER_COLOR].data.foreach_set("color", color.reshape(-1))
 
 
@@ -191,6 +223,7 @@ def get_vertex_color_material():
     material.blend_method = "BLEND"
     return material
 
+
 def add_mesh_color(mesh, color):
     """Add uniform color to mesh."""
     if len(color) == 3:
@@ -198,6 +231,7 @@ def add_mesh_color(mesh, color):
     material = bpy.data.materials.new("color")
     material.diffuse_color = color
     mesh.materials.append(material)
+
 
 def get_frame_selection_node(modifier, n_frames):
     """Add node that filters points based on the Frame Index property."""
@@ -211,12 +245,15 @@ def get_frame_selection_node(modifier, n_frames):
         "ShaderNodeMath",
         operation="COMPARE",
         input_1=frame_index.outputs[1],
-        input_2=0.5
+        input_2=0.5,
     )
 
     # link compare node to frame index
     action = bpy.data.actions.new("AnimationAction")
-    fcurve = action.fcurves.new(data_path=f'nodes["{frame_selection_node.name}"].inputs[0].default_value', index=0)
+    fcurve = action.fcurves.new(
+        data_path=f'nodes["{frame_selection_node.name}"].inputs[0].default_value',
+        index=0,
+    )
     fcurve.keyframe_points.add(2)
     fcurve.keyframe_points.foreach_set("co", [0, 0, n_frames, n_frames])
     bpy.context.scene.frame_end = n_frames - 1
@@ -226,7 +263,10 @@ def get_frame_selection_node(modifier, n_frames):
 
     return frame_selection_node
 
-def new_mesh(vertices, faces, name='mesh', color=None, location=None, rotation_euler=None):
+
+def new_mesh(
+    vertices, faces, name="mesh", color=None, location=None, rotation_euler=None
+):
     """Create mesh with uniform color."""
     bmesh = bpy.data.meshes.new(name=name)
     bmesh.from_pydata(vertices, [], faces)
@@ -240,7 +280,7 @@ def new_mesh(vertices, faces, name='mesh', color=None, location=None, rotation_e
     if color is not None:
         material = bpy.data.materials.new(name)
         material.use_nodes = True
-        bsdf = material.node_tree.nodes['Principled BSDF']
-        bsdf.inputs['Base Color'].default_value = color
+        bsdf = material.node_tree.nodes["Principled BSDF"]
+        bsdf.inputs["Base Color"].default_value = color
         mesh_object.data.materials.append(material)
     return mesh_object

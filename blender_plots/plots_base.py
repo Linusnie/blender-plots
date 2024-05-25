@@ -1,6 +1,6 @@
+import bpy
 import numpy as np
 
-import bpy
 from blender_plots import blender_utils as bu
 
 
@@ -35,7 +35,9 @@ class Plot:
     @points.setter
     def points(self, points):
         if self._points is not None and points.shape != self._points.shape:
-            raise ValueError(f"Can't change number of points: was {self._points.shape=}, got {self.points.shape=}")
+            raise ValueError(
+                f"Can't change number of points: was {self._points.shape=}, got {self.points.shape=}"
+            )
         self._points = points
         self.update_points()
 
@@ -46,13 +48,18 @@ class Plot:
         elif len(self.mesh.vertices) == len(self._points.reshape(-1, 3)):
             self.mesh.vertices.foreach_set("co", self._points.reshape(-1))
         else:
-            raise ValueError(f"Can't change number of vertices,"
-                             f"was {len(self.mesh.vertices)=}, got {self._point.shape=}.")
+            raise ValueError(
+                f"Can't change number of vertices,"
+                f"was {len(self.mesh.vertices)=}, got {self._point.shape=}."
+            )
 
         if self.n_frames is not None:
             bu.set_vertex_attribute(
-                self.mesh, bu.Constants.FRAME_INDEX,
-                np.arange(0, self.n_frames)[None].repeat(self.n_points, axis=1).reshape(-1)
+                self.mesh,
+                bu.Constants.FRAME_INDEX,
+                np.arange(0, self.n_frames)[None]
+                .repeat(self.n_points, axis=1)
+                .reshape(-1),
             )
 
         self.base_object.data = self.mesh
@@ -87,11 +94,12 @@ class Plot:
                     out_array = np.tile(data_array, (self.n_frames, *([1] * len(dims))))
                 else:
                     out_array = data_array
-            case (*dims, ) if dims in valid_dims:
-                out_array = np.tile(data_array, (self.n_vertices, *([1]*len(dims))))
+            case (*dims,) if dims in valid_dims:
+                out_array = np.tile(data_array, (self.n_vertices, *([1] * len(dims))))
             case _:
                 raise ValueError(
-                    f"Invalid {name} data shape: {data_array.shape} with {self.n_frames=}, {self.n_points=}")
+                    f"Invalid {name} data shape: {data_array.shape} with {self.n_frames=}, {self.n_points=}"
+                )
         return out_array, dims
 
 
@@ -101,18 +109,27 @@ def get_points_array(x, y, z, n_dims=1):
         # only x provided, parse it as Nx3 or TxNx3
         x = np.array(x)
         match x.shape:
-            case (3, ):
+            case (3,):
                 points = x.reshape(1, 1, 3)
                 n_frames = None
                 dims = (1 for _ in range(n_dims))
-            case (*dims, 3, ) if len(dims) == n_dims:
+            case (
+                *dims,
+                3,
+            ) if len(dims) == n_dims:
                 points = x
                 n_frames = None
-            case (n_frames, *dims, 3, ) if len(dims) == n_dims:
+            case (
+                n_frames,
+                *dims,
+                3,
+            ) if len(dims) == n_dims:
                 points = x
             case _:
-                dims_str = 'x'.join(f'N{i + 1}' for i in range(n_dims))
-                raise ValueError(f"Invalid shape for points: {x.shape=}, expected {dims_str}x3 or Tx{dims_str}x3")
+                dims_str = "x".join(f"N{i + 1}" for i in range(n_dims))
+                raise ValueError(
+                    f"Invalid shape for points: {x.shape=}, expected {dims_str}x3 or Tx{dims_str}x3"
+                )
     elif (y is not None) and (z is not None):
         # parse x,y,z as N,N,N or TxN,TxN,TxN
         x, y, z = np.array(x), np.array(y), np.array(z)
@@ -120,14 +137,20 @@ def get_points_array(x, y, z, n_dims=1):
             case (), (), ():
                 points = np.array([x, y, z]).reshape(1, 3)
                 n_frames, dims = None, (1 for _ in range(n_dims))
-            case (*dims_x, ), (*dims_y, ), (*dims_z, ) if (dims_x == dims_y == dims_z) and len(dims_x) == n_dims:
+            case (*dims_x,), (*dims_y,), (*dims_z,) if (
+                dims_x == dims_y == dims_z
+            ) and len(dims_x) == n_dims:
                 points = np.stack([x, y, z], axis=-1)
                 n_frames, dims = None, dims_x
-            case (tx, *dims_x), (ty, *dims_y), (tz, *dims_z) if (tx == ty == tz) and (dims_x == dims_y == dims_z) and len(dims_x) == n_dims:
+            case (tx, *dims_x), (ty, *dims_y), (tz, *dims_z) if (tx == ty == tz) and (
+                dims_x == dims_y == dims_z
+            ) and len(dims_x) == n_dims:
                 points = np.stack([x, y, z], axis=-1)
                 n_frames, dims = tx, dims_x
             case _:
-                raise ValueError(f"Incompatible shapes: {x.shape=}, {y.shape=}, {z.shape=}")
+                raise ValueError(
+                    f"Incompatible shapes: {x.shape=}, {y.shape=}, {z.shape=}"
+                )
 
     else:
         raise ValueError(f"Eiter both y and z needs to be provided, or neither")
