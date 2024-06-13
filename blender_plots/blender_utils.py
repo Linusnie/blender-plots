@@ -220,7 +220,7 @@ def get_vertex_color_material():
     material.node_tree.links.new(color_node.outputs["Color"], bsdf.inputs["Base Color"])
     material.node_tree.links.new(color_node.outputs["Alpha"], bsdf.inputs["Alpha"])
 
-    material.blend_method = "BLEND"
+    material.blend_method = "HASHED"
     return material
 
 
@@ -280,7 +280,9 @@ def new_mesh(
     if color is not None:
         material = bpy.data.materials.new(name)
         material.use_nodes = True
-        bsdf = material.node_tree.nodes["Principled BSDF"]
-        bsdf.inputs["Base Color"].default_value = color
+        bsdf = material.node_tree.nodes['Principled BSDF']
+        bsdf.inputs['Base Color'].default_value = color
+        if len(color) == 4:
+            bsdf.inputs['Alpha'].default_value = color[-1]
         mesh_object.data.materials.append(material)
     return mesh_object
