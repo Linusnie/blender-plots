@@ -17,9 +17,10 @@ def create_camera(location, rotation):
     bpy.context.scene.camera = bpy.data.objects["Camera"]
 
 
-def render_image(output_path, resolution, samples=100):
-    bpy.context.scene.render.resolution_x = resolution[0]
-    bpy.context.scene.render.resolution_y = resolution[1]
+def render_image(output_path, resolution=None, samples=100):
+    if resolution is not None:
+        bpy.context.scene.render.resolution_x = resolution[0]
+        bpy.context.scene.render.resolution_y = resolution[1]
     bpy.context.scene.cycles.samples = samples
     bpy.context.scene.render.filepath = output_path
     bpy.ops.render.render(write_still=True)
@@ -49,6 +50,9 @@ def setup_scene(
     bpy.context.scene.render.engine = "CYCLES"
     bpy.data.scenes["Scene"].cycles.samples = 256
 
+    if "Light" in bpy.data.objects:
+        # remove default light
+        bpy.data.objects.remove(bpy.data.objects["Light"])
     if "Sun" in bpy.data.objects:
         bpy.data.objects.remove(bpy.data.objects["Sun"])
     bpy.ops.object.light_add(

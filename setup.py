@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='blender-plots',
-    version='1.0.10',
+    version='1.0.11',
     author='Linus Härenstam-Nielsen',
     description='Plotting API for Blender',
     url='https://github.com/Linusnie/blender-plots',
