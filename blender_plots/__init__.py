@@ -4,6 +4,7 @@ from blender_plots import (
     marker_utils,
     plots_base,
     scatter,
+	scene_utils,
     surface,
 )
 from blender_plots.arrows import Arrows
