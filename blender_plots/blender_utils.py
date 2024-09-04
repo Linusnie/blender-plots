@@ -244,7 +244,7 @@ def get_frame_selection_node(modifier, n_frames):
     frame_selection_node = node_linker.new_node(
         "ShaderNodeMath",
         operation="COMPARE",
-        input_1=frame_index.outputs[1],
+        input_1=frame_index.outputs["Attribute"],
         input_2=0.5,
     )
 
