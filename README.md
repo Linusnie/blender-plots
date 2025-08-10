@@ -32,7 +32,7 @@ If you're using `blender_notebook` as described below you can instead pip instal
 
 ### Set up blender notebook (optional)
 
-Since the built-in code editor isn't great I recommend using jupyter notebooks with a [blender kernel](https://github.com/cheng-chi/blender_notebook) for script heavy use cases.
+For those using jupyter notebooks, it is possible to set up a [blender kernel](https://github.com/cheng-chi/blender_notebook) which connects a blender GUI to the notebook. This way, the visualization gets updated in real time each time you run a cell.
 
 In a virtual environment, run:
 
@@ -44,6 +44,22 @@ blender_notebook install --blender-exec [path_to_blender]/blender --kernel-name 
 You should then be able to select `blender` as kernel in your preferred notebook editor.
 
 ## Examples
+
+To output a `.blend` file as part of a stand-alone scipt, I recommend a setup similar to the following:
+
+```python
+import bpy
+def save_blend_file(name='blender_plot'):
+    if 'Cube' in bpy.context.scene.objects:
+        bplt.blender_utils.delete(bpy.context.scene.objects['Cube'])
+    bpy.ops.wm.save_as_mainfile(filepath=f"<OUTPUT DIRECTORY>/{name}.blend")
+
+# [plotting code...]
+
+save_blend_file()
+```
+
+You can then simply drag-and-drop the generated file (in this case named `blender_plot.blend`) into Blender to view the results.
 
 ### Scatterplots
 
