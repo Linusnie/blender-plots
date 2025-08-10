@@ -12,23 +12,31 @@ At the moment this readme acts as the documentation. The easiest way to get star
 
 ## Installation
 
-### Option 1: Install with pip (recommended)
+### Option 1 Install with pip for scripting (recommended)
 
-Run the following command in a terminal window:
+To use blender-plots as part of a stand-alone script. Simply install it with pip:
+
+```bash
+pip install bpy blender_plots
+```
+
+Note that `bpy` requires python version 3.10, it may work on later versions. See Examples below for usage.
+
+### Option 2: Install with pip for blender GUI
+
+To use blender-plots in the code window of the GUI, it must be installed to the python environment used by Blender:
 
 ```bash
 [path_to_blender]/[version_number]/python/bin/python3.10 -m pip install blender_plots
 ```
 
-This will download the library to `[path_to_blender]/[version_number]/python/lib/python3.10/site-packages/blender-plots`.
+This will install the library to `[path_to_blender]/[version_number]/python/lib/python3.10/site-packages/blender-plots`.
 
-If you're using `blender_notebook` as described below you can instead pip install to the virtual environment to keep the Blender python environment clean. However with this method the library won't be available when lauching Blender without the notebook.
-
-### Option 2: Install as addon
+### Option 3: Install as addon
 
 * Go to `Code > Download ZIP` above and then in blender go to `Edit > Preferences > Add-ons > install` and select the downloaded file (or simply git-clone this repo to the blender addons folder).
 * Go to the addons panel in blender, search for `blender plots` and click on the tick-box.
-* You should now be able to run `import blender_plots as bplt` in the python console.
+* You should now be able to run `import blender_plots as bplt` in the built-in python console.
 
 ### Set up blender notebook (optional)
 
