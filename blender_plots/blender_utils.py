@@ -286,3 +286,15 @@ def new_mesh(
             bsdf.inputs['Alpha'].default_value = color[-1]
         mesh_object.data.materials.append(material)
     return mesh_object
+
+def get_vertices(mesh):
+	n_vertices = len(mesh.vertices)
+	vertices = np.ones(n_vertices * 3)
+	mesh.vertices.foreach_get('co', vertices)
+	return vertices.reshape(n_vertices, 3)
+
+def get_faces(mesh):
+	n_faces = len(mesh.loop_triangles)
+	faces = np.ones(n_faces * 3, dtype=np.int32)
+	mesh.loop_triangles.foreach_get('vertices', faces)
+	return faces.reshape(n_faces, 3)
