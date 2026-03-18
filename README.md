@@ -113,6 +113,26 @@ bplt.Surface(x, y, z, color=(0, 0, 1), name="blue")
 
 ![image info](./images/sinusoids_surface.png)
 
+### Curve plots
+
+Curve plots render a sequence of points as a continuous curve. Pass a `Nx3` array (or `x`, `y`, `z` arrays of length `N`). Colors and animation work the same way as with scatterplots.
+
+```python
+import numpy as np
+import blender_plots as bplt
+from colorsys import hls_to_rgb
+
+n, l = 500, 100
+t = np.linspace(0, 4 * np.pi, n)
+x = np.cos(t) * t / (4 * np.pi) * l
+y = np.sin(t) * t / (4 * np.pi) * l
+z = t / (4 * np.pi) * 40
+color = np.array([hls_to_rgb(v, 0.5, 1) for v in t / t.max()])
+bplt.Curve(x, y, z, color=color, radius=0.5)
+```
+
+![image info](./images/curve_editor.png)
+
 ### Arrow plots
 
 Create an arrow plot by providing an `Nx3` array of starting points and an `Nx3` array of vectors representing the arrows.
