@@ -1,5 +1,6 @@
-from dataclasses import dataclass
+from blender_plots import blender_utils as bu
 
+from dataclasses import dataclass
 import bpy
 import numpy as np
 
@@ -278,13 +279,8 @@ def new_mesh(
     )
 
     if color is not None:
-        material = bpy.data.materials.new(name)
-        material.use_nodes = True
-        bsdf = material.node_tree.nodes['Principled BSDF']
-        bsdf.inputs['Base Color'].default_value = color
-        if len(color) == 4:
-            bsdf.inputs['Alpha'].default_value = color[-1]
-        mesh_object.data.materials.append(material)
+        bu.set_vertex_colors(mesh_object.data, color)
+        mesh_object.data.materials.append(bu.get_vertex_color_material())
     return mesh_object
 
 def get_vertices(mesh):
